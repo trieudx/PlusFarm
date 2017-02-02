@@ -31,7 +31,6 @@
 #include "pin_mux_register.h"
 #include "spi_register.h"
 #include "timer_register.h"
-#include "uart_register.h"
 
 #endif
 

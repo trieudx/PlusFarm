@@ -1,6 +1,7 @@
 #include "esp_common.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "uart.h"
 
 /******************************************************************************
  * FunctionName : user_rf_cal_sector_set
@@ -45,9 +46,10 @@ uint32 user_rf_cal_sector_set(void)
 
 void task_uart(void *param)
 {
+	uint32 count = 0;
 	while (1)
 	{
-		printf("SDK version:%s,%u\n", system_get_sdk_version(),__LINE__ );
+		printf("%d: SDK version:%s\n", ++count, system_get_sdk_version());
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
 }
@@ -60,7 +62,16 @@ void task_uart(void *param)
 *******************************************************************************/
 void user_init(void)
 {
-	uart_init_new();
+	/* Initialize UART for printing log */
+	UART_Config uart_config;
+	uart_config.port_no = UART_PORT0;
+	uart_config.baud_rate = UART_BAUD_RATE_460800;
+	uart_config.word_length = UART_WORD_LENGTH_8b;
+	uart_config.parity = UART_PARITY_NONE;
+	uart_config.stop_bits = UART_STOP_BITS_1;
+	uart_config.hw_flow_ctrl = UART_HW_FLOW_CTRL_NONE;
+	UART_Init(&uart_config);
+
 	xTaskCreate(task_uart, "task_uart", 384, NULL, 5, NULL);
 }
 
