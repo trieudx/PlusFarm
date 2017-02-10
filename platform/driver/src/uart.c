@@ -12,18 +12,18 @@
 #define UART_TXFIFO_CNT_S				16
 
 #define UART_CONF0(i)					(UART_REG_BASE(i) + 0x20)
-#define UART_TXFIFO_RST					BIT(18)
-#define UART_RXFIFO_RST					BIT(17)
-#define UART_TX_FLOW_EN					BIT(15)
+#define UART_TXFIFO_RST					BIT18
+#define UART_RXFIFO_RST					BIT17
+#define UART_TX_FLOW_EN					BIT15
 #define UART_STOP_BIT_NUM_S				4
 #define UART_BIT_NUM_S					2
-#define UART_PARITY_EN					BIT(1)
+#define UART_PARITY_EN					BIT1
 
 #define UART_CONF1(i)					(UART_REG_BASE(i) + 0x24)
-#define UART_RX_TOUT_EN					BIT(31)
+#define UART_RX_TOUT_EN					BIT31
 #define UART_RX_TOUT_THRHD				0x0000007F
 #define UART_RX_TOUT_THRHD_S			24
-#define UART_RX_FLOW_EN					BIT(23)
+#define UART_RX_FLOW_EN					BIT23
 #define UART_RX_FLOW_THRHD				0x0000007F
 #define UART_RX_FLOW_THRHD_S			16
 #define UART_TXFIFO_EMPTY_THRHD			0x0000007F

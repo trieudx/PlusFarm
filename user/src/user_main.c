@@ -2,6 +2,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "uart.h"
+#include "gpio.h"
 
 /******************************************************************************
  * FunctionName : user_rf_cal_sector_set
@@ -46,10 +47,36 @@ uint32 user_rf_cal_sector_set(void)
 
 void task_uart(void *param)
 {
+	UART_Config uart_config;
+	uart_config.port_no = UART_PORT0;
+	uart_config.baud_rate = UART_BAUD_RATE_460800;
+	uart_config.word_length = UART_WORD_LENGTH_8b;
+	uart_config.parity = UART_PARITY_NONE;
+	uart_config.stop_bits = UART_STOP_BITS_1;
+	uart_config.hw_flow_ctrl = UART_HW_FLOW_CTRL_NONE;
+	UART_Init(&uart_config);
+
 	uint32 count = 0;
 	while (1)
 	{
 		printf("%d: SDK version:%s\n", ++count, system_get_sdk_version());
+		vTaskDelay(1000 / portTICK_RATE_MS);
+	}
+}
+
+void task_gpio(void *param)
+{
+	GPIO_Config gpio_config;
+	gpio_config.pin = GPIO_PIN_4;
+	gpio_config.mode = GPIO_MODE_OUT_PP;
+	gpio_config.pull = GPIO_NO_PULL;
+	GPIO_Init(&gpio_config);
+
+	uint32 count = 0;
+	while (1)
+	{
+		GPIO_Toggle(gpio_config.pin);
+		printf("%d: GPIO4 toggled\n", ++count);
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
 }
@@ -63,15 +90,8 @@ void task_uart(void *param)
 void user_init(void)
 {
 	/* Initialize UART for printing log */
-	UART_Config uart_config;
-	uart_config.port_no = UART_PORT0;
-	uart_config.baud_rate = UART_BAUD_RATE_460800;
-	uart_config.word_length = UART_WORD_LENGTH_8b;
-	uart_config.parity = UART_PARITY_NONE;
-	uart_config.stop_bits = UART_STOP_BITS_1;
-	uart_config.hw_flow_ctrl = UART_HW_FLOW_CTRL_NONE;
-	UART_Init(&uart_config);
-
 	xTaskCreate(task_uart, "task_uart", 384, NULL, 5, NULL);
+	/* Test GPIO */
+	xTaskCreate(task_gpio, "task_gpio", 384, NULL, 5, NULL);
 }
 

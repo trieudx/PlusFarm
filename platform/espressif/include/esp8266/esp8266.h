@@ -27,9 +27,7 @@
 
 #include "ets_sys.h"
 #include "eagle_soc.h"
-#include "gpio_register.h"
 #include "pin_mux_register.h"
-#include "spi_register.h"
 #include "timer_register.h"
 
 #endif

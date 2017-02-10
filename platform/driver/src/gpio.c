@@ -1,211 +1,161 @@
-/******************************************************************************
-* Copyright (C) 2014 -2016  Espressif System
-*
-* FileName: gpio.c
-*
-* Description: GPIO related operation
-*
-* Modification history:
-* 2015/7/3, v1.0 create this file.
-*******************************************************************************/
+/* Inclusion section ======================================================== */
 #include "esp_common.h"
-#include "portmacro.h"
 #include "gpio.h"
 
-void  
-gpio_config(GPIO_ConfigTypeDef  *pGPIOConfig)
+/* Private macro definition section ========================================= */
+#define PERIPHS_GPIO_BASEADDR				0x60000300
+
+#define GPIO_OUT_ADDRESS					0x00
+#define GPIO_OUT_W1TS_ADDRESS				0x04
+#define GPIO_OUT_W1TC_ADDRESS				0x08
+
+#define GPIO_ENABLE_ADDRESS					0x0C
+#define GPIO_ENABLE_W1TS_ADDRESS			0x10
+#define GPIO_ENABLE_W1TC_ADDRESS			0x14
+
+#define GPIO_IN_ADDRESS						0x18
+
+#define GPIO_PIN_INT_TYPE_MSB				9
+#define GPIO_PIN_INT_TYPE_LSB				7
+#define GPIO_PIN_INT_TYPE_MASK				(0x00000007<<GPIO_PIN_INT_TYPE_LSB)
+
+#define GPIO_PAD_DRIVER_ENABLE				1
+#define GPIO_PAD_DRIVER_DISABLE				(~GPIO_PAD_DRIVER_ENABLE)
+#define GPIO_PIN_DRIVER_MSB					2
+#define GPIO_PIN_DRIVER_LSB					2
+#define GPIO_PIN_DRIVER_MASK				(0x00000001 << GPIO_PIN_DRIVER_LSB)
+
+#define GPIO_PIN0_ADDRESS					0x28
+
+#define GPIO_REG_READ(reg)	READ_PERI_REG(PERIPHS_GPIO_BASEADDR + reg)
+#define GPIO_REG_WRITE(reg, val)	\
+							WRITE_PERI_REG(PERIPHS_GPIO_BASEADDR + reg, val)
+
+#define GPIO_PIN_REG(i)		(i == 0) ? PERIPHS_IO_MUX_GPIO0_U:		\
+							(i == 1) ? PERIPHS_IO_MUX_U0TXD_U:		\
+							(i == 2) ? PERIPHS_IO_MUX_GPIO2_U:		\
+							(i == 3) ? PERIPHS_IO_MUX_U0RXD_U:		\
+							(i == 4) ? PERIPHS_IO_MUX_GPIO4_U:		\
+							(i == 5) ? PERIPHS_IO_MUX_GPIO5_U:		\
+							(i == 6) ? PERIPHS_IO_MUX_SD_CLK_U:		\
+							(i == 7) ? PERIPHS_IO_MUX_SD_DATA0_U:	\
+							(i == 8) ? PERIPHS_IO_MUX_SD_DATA1_U:	\
+							(i == 9) ? PERIPHS_IO_MUX_SD_DATA2_U:	\
+							(i == 10)? PERIPHS_IO_MUX_SD_DATA3_U:	\
+							(i == 11)? PERIPHS_IO_MUX_SD_CMD_U:		\
+							(i == 12)? PERIPHS_IO_MUX_MTDI_U:		\
+							(i == 13)? PERIPHS_IO_MUX_MTCK_U:		\
+							(i == 14)? PERIPHS_IO_MUX_MTMS_U:		\
+							PERIPHS_IO_MUX_MTDO_U
+
+#define GPIO_PIN_ADDR(i)	(GPIO_PIN0_ADDRESS + i * 4)
+
+/* Private type definition section ========================================== */
+/* Private function prototype section ======================================= */
+/* Public function definition section ======================================= */
+void GPIO_Init(GPIO_Config *config)
 {
-    uint16 gpio_pin_mask = pGPIOConfig->GPIO_Pin;
-    uint32 io_reg;
-    uint8 io_num = 0;
-    uint32 pin_reg;
+	if (config->pin != GPIO_PIN_16)
+	{
+		uint32 reg_addr = GPIO_PIN_REG(config->pin);
+		uint32 reg_val;
 
-    if (pGPIOConfig->GPIO_Mode == GPIO_Mode_Input) {
-        GPIO_AS_INPUT(gpio_pin_mask);
-    } else if (pGPIOConfig->GPIO_Mode == GPIO_Mode_Output) {
-        GPIO_AS_OUTPUT(gpio_pin_mask);
-    }
+		/* Select GPIO functionality */
+		if ((1 << config->pin) & (BIT0 | BIT2 | BIT4 | BIT5))
+			PIN_FUNC_SELECT(reg_addr, 0);
+		else
+			PIN_FUNC_SELECT(reg_addr, 3);
 
-    do {
-        if ((gpio_pin_mask >> io_num) & 0x1) {
-            io_reg = GPIO_PIN_REG(io_num);
+		/* Set mode */
+		if (config->mode == GPIO_MODE_IN)
+			GPIO_REG_WRITE(GPIO_ENABLE_W1TC_ADDRESS, 1 << config->pin);
+		else
+		{
+			GPIO_REG_WRITE(GPIO_ENABLE_W1TS_ADDRESS, 1 << config->pin);
 
-            if ((0x1 << io_num) & (GPIO_Pin_0 | GPIO_Pin_2 | GPIO_Pin_4 | GPIO_Pin_5)) {
-                PIN_FUNC_SELECT(io_reg, 0);
-            } else {
-                PIN_FUNC_SELECT(io_reg, 3);
-            }
+			if (config->mode == GPIO_MODE_OUT_OD)
+			{
+				reg_val = GPIO_REG_READ(GPIO_PIN_ADDR(config->pin));
+				reg_val &= (~GPIO_PIN_DRIVER_MASK);
+				reg_val |= (GPIO_PAD_DRIVER_ENABLE << GPIO_PIN_DRIVER_LSB);
+				GPIO_REG_WRITE(GPIO_PIN_ADDR(config->pin), reg_val);
+			}
+		}
 
-            if (pGPIOConfig->GPIO_Pullup) {
-                PIN_PULLUP_EN(io_reg);
-            } else {
-                PIN_PULLUP_DIS(io_reg);
-            }
+		/* Configure internal pull-up resistor */
+		if (config->pull == GPIO_PULL_UP)
+			PIN_PULLUP_EN(reg_addr);
+		else
+			PIN_PULLUP_DIS(reg_addr);
 
-            if (pGPIOConfig->GPIO_Mode == GPIO_Mode_Out_OD) {
-                portENTER_CRITICAL();
+		/* Disable interrupt */
+		reg_val = GPIO_REG_READ(GPIO_PIN_ADDR(config->pin));
+		reg_val &= (~GPIO_PIN_INT_TYPE_MASK);
+		GPIO_REG_WRITE(GPIO_PIN_ADDR(config->pin), reg_val);
+	}
+	else
+	{
+		/* Select GPIO functionality */
+		WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
+						(READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xFFFFFFBC) | BIT0);
+		WRITE_PERI_REG(RTC_GPIO_CONF,
+						(READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xFFFFFFFE));
 
-                pin_reg = GPIO_REG_READ(GPIO_PIN_ADDR(io_num));
-                pin_reg &= (~GPIO_PIN_DRIVER_MASK);
-                pin_reg |= (GPIO_PAD_DRIVER_ENABLE << GPIO_PIN_DRIVER_LSB);
-                GPIO_REG_WRITE(GPIO_PIN_ADDR(io_num), pin_reg);
+		/* Set mode */
+		if (config->mode == GPIO_MODE_IN)
+		{
+			WRITE_PERI_REG(RTC_GPIO_ENABLE,
+				READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xFFFFFFFE);
+		}
+		else
+		{
+			WRITE_PERI_REG(RTC_GPIO_ENABLE,
+				(READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xFFFFFFFE) | BIT0);
+		}
+	}
 
-                portEXIT_CRITICAL();
-            } else if (pGPIOConfig->GPIO_Mode == GPIO_Mode_Sigma_Delta) {
-                portENTER_CRITICAL();
-
-                pin_reg = GPIO_REG_READ(GPIO_PIN_ADDR(io_num));
-                pin_reg &= (~GPIO_PIN_SOURCE_MASK);
-                pin_reg |= (0x1 << GPIO_PIN_SOURCE_LSB);
-                GPIO_REG_WRITE(GPIO_PIN_ADDR(io_num), pin_reg);
-                GPIO_REG_WRITE(GPIO_SIGMA_DELTA_ADDRESS, SIGMA_DELTA_ENABLE);
-
-                portEXIT_CRITICAL();
-            }
-
-            gpio_pin_intr_state_set(io_num, pGPIOConfig->GPIO_IntrType);
-        }
-
-        io_num++;
-    } while (io_num < 16);
 }
 
-
-/*
- * Change GPIO pin output by setting, clearing, or disabling pins.
- * In general, it is expected that a bit will be set in at most one
- * of these masks.  If a bit is clear in all masks, the output state
- * remains unchanged.
- *
- * There is no particular ordering guaranteed; so if the order of
- * writes is significant, calling code should divide a single call
- * into multiple calls.
- */
-void  
-gpio_output_conf(uint32 set_mask, uint32 clear_mask, uint32 enable_mask, uint32 disable_mask)
+void GPIO_SetLow(GPIO_Pin pin)
 {
-    GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, set_mask);
-    GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, clear_mask);
-    GPIO_REG_WRITE(GPIO_ENABLE_W1TS_ADDRESS, enable_mask);
-    GPIO_REG_WRITE(GPIO_ENABLE_W1TC_ADDRESS, disable_mask);
+	GPIO_Set(pin, 0);
 }
 
-/*
- * Sample the value of GPIO input pins and returns a bitmask.
- */
-uint32  
-gpio_input_get(void)
+void GPIO_SetHigh(GPIO_Pin pin)
 {
-    return GPIO_REG_READ(GPIO_IN_ADDRESS);
+	GPIO_Set(pin, 1);
 }
 
-/*
- * Register an application-specific interrupt handler for GPIO pin
- * interrupts.  Once the interrupt handler is called, it will not
- * be called again until after a call to gpio_intr_ack.  Any GPIO
- * interrupts that occur during the interim are masked.
- *
- * The application-specific handler is called with a mask of
- * pending GPIO interrupts.  After processing pin interrupts, the
- * application-specific handler may wish to use gpio_intr_pending
- * to check for any additional pending interrupts before it returns.
- */
-void  
-gpio_intr_handler_register(void *fn, void *arg)
+void GPIO_Toggle(GPIO_Pin pin)
 {
-    _xt_isr_attach(ETS_GPIO_INUM, fn, arg);
+	if (pin != GPIO_PIN_16)
+		GPIO_Set(pin, !((GPIO_REG_READ(GPIO_OUT_ADDRESS) >> pin) & BIT0));
 }
 
-/*
-  only highlevel and lowlevel intr can use for wakeup
-*/
-void  
-gpio_pin_wakeup_enable(uint32 i, GPIO_INT_TYPE intr_state)
+void GPIO_Set(GPIO_Pin pin, bool level)
 {
-    uint32 pin_reg;
-
-    if ((intr_state == GPIO_PIN_INTR_LOLEVEL) || (intr_state == GPIO_PIN_INTR_HILEVEL)) {
-        portENTER_CRITICAL();
-
-        pin_reg = GPIO_REG_READ(GPIO_PIN_ADDR(i));
-        pin_reg &= (~GPIO_PIN_INT_TYPE_MASK);
-        pin_reg |= (intr_state << GPIO_PIN_INT_TYPE_LSB);
-        pin_reg |= GPIO_PIN_WAKEUP_ENABLE_SET(GPIO_WAKEUP_ENABLE);
-        GPIO_REG_WRITE(GPIO_PIN_ADDR(i), pin_reg);
-
-        portEXIT_CRITICAL();
-    }
+	if (pin != GPIO_PIN_16)
+	{
+		if (level == 0)
+			GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, 1 << pin);
+		else
+			GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 1 << pin);
+	}
+	else
+	{
+		WRITE_PERI_REG(RTC_GPIO_OUT,
+					(READ_PERI_REG(RTC_GPIO_OUT) & (uint32)0xFFFFFFFE) | level);
+	}
 }
 
-void  
-gpio_pin_wakeup_disable(void)
+bool GPIO_Read(GPIO_Pin pin)
 {
-    uint8  i;
-    uint32 pin_reg;
-
-    for (i = 0; i < GPIO_PIN_COUNT; i++) {
-        pin_reg = GPIO_REG_READ(GPIO_PIN_ADDR(i));
-
-        if (pin_reg & GPIO_PIN_WAKEUP_ENABLE_MASK) {
-            pin_reg &= (~GPIO_PIN_INT_TYPE_MASK);
-            pin_reg |= (GPIO_PIN_INTR_DISABLE << GPIO_PIN_INT_TYPE_LSB);
-            pin_reg &= ~(GPIO_PIN_WAKEUP_ENABLE_SET(GPIO_WAKEUP_ENABLE));
-            GPIO_REG_WRITE(GPIO_PIN_ADDR(i), pin_reg);
-        }
-    }
+	if (pin != GPIO_PIN_16)
+		return ((GPIO_REG_READ(GPIO_IN_ADDRESS) >> pin) & BIT0);
+	else
+		return (READ_PERI_REG(RTC_GPIO_IN_DATA) & BIT0);
 }
 
-void 
-gpio_pin_intr_state_set(uint32 i, GPIO_INT_TYPE intr_state)
-{
-    uint32 pin_reg;
+/* Private function definition section ====================================== */
 
-    portENTER_CRITICAL();
-
-    pin_reg = GPIO_REG_READ(GPIO_PIN_ADDR(i));
-    pin_reg &= (~GPIO_PIN_INT_TYPE_MASK);
-    pin_reg |= (intr_state << GPIO_PIN_INT_TYPE_LSB);
-    GPIO_REG_WRITE(GPIO_PIN_ADDR(i), pin_reg);
-
-    portEXIT_CRITICAL();
-}
-
-void  
-gpio16_output_conf(void)
-{
-    WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
-                   (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)0x1);  // mux configuration for XPD_DCDC to output rtc_gpio0
-
-    WRITE_PERI_REG(RTC_GPIO_CONF,
-                   (READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xfffffffe) | (uint32)0x0);  //mux configuration for out enable
-
-    WRITE_PERI_REG(RTC_GPIO_ENABLE,
-                   (READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe) | (uint32)0x1);    //out enable
-}
-
-void  
-gpio16_output_set(uint8 value)
-{
-    WRITE_PERI_REG(RTC_GPIO_OUT,
-                   (READ_PERI_REG(RTC_GPIO_OUT) & (uint32)0xfffffffe) | (uint32)(value & 1));
-}
-
-void  
-gpio16_input_conf(void)
-{
-    WRITE_PERI_REG(PAD_XPD_DCDC_CONF,
-                   (READ_PERI_REG(PAD_XPD_DCDC_CONF) & 0xffffffbc) | (uint32)0x1);  // mux configuration for XPD_DCDC and rtc_gpio0 connection
-
-    WRITE_PERI_REG(RTC_GPIO_CONF,
-                   (READ_PERI_REG(RTC_GPIO_CONF) & (uint32)0xfffffffe) | (uint32)0x0);  //mux configuration for out enable
-
-    WRITE_PERI_REG(RTC_GPIO_ENABLE,
-                   READ_PERI_REG(RTC_GPIO_ENABLE) & (uint32)0xfffffffe);    //out disable
-}
-
-uint8  
-gpio16_input_get(void)
-{
-    return (uint8)(READ_PERI_REG(RTC_GPIO_IN_DATA) & 1);
-}
-
+/* ============================= End of file ================================ */
