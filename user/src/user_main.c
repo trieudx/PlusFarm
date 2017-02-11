@@ -3,6 +3,7 @@
 #include "task.h"
 #include "uart.h"
 #include "gpio.h"
+#include "i2cm.h"
 
 /******************************************************************************
  * FunctionName : user_rf_cal_sector_set
@@ -45,29 +46,10 @@ uint32 user_rf_cal_sector_set(void)
 	return rf_cal_sec;
 }
 
-void task_uart(void *param)
-{
-	UART_Config uart_config;
-	uart_config.port_no = UART_PORT0;
-	uart_config.baud_rate = UART_BAUD_RATE_460800;
-	uart_config.word_length = UART_WORD_LENGTH_8b;
-	uart_config.parity = UART_PARITY_NONE;
-	uart_config.stop_bits = UART_STOP_BITS_1;
-	uart_config.hw_flow_ctrl = UART_HW_FLOW_CTRL_NONE;
-	UART_Init(&uart_config);
-
-	uint32 count = 0;
-	while (1)
-	{
-		printf("%d: SDK version:%s\n", ++count, system_get_sdk_version());
-		vTaskDelay(1000 / portTICK_RATE_MS);
-	}
-}
-
 void task_gpio(void *param)
 {
 	GPIO_Config gpio_config;
-	gpio_config.pin = GPIO_PIN_4;
+	gpio_config.pin = GPIO_PIN_13;
 	gpio_config.mode = GPIO_MODE_OUT_PP;
 	gpio_config.pull = GPIO_NO_PULL;
 	GPIO_Init(&gpio_config);
@@ -76,7 +58,37 @@ void task_gpio(void *param)
 	while (1)
 	{
 		GPIO_Toggle(gpio_config.pin);
-		printf("%d: GPIO4 toggled\n", ++count);
+		printf("%d: GPIO%d toggled\n", ++count, gpio_config.pin);
+		vTaskDelay(1000 / portTICK_RATE_MS);
+	}
+}
+
+void task_i2c(void *param)
+{
+	I2CM_HwConfig i2cm_hwconfig;
+	i2cm_hwconfig.scl_pin = GPIO_PIN_2;
+	i2cm_hwconfig.sda_pin = GPIO_PIN_14;
+	I2CM_Init(&i2cm_hwconfig);
+
+	I2CM_SlaveConfig i2cm_bh1750_config;
+	i2cm_bh1750_config.slave_addr = 0x23;
+	i2cm_bh1750_config.speed_mode = I2CM_SPEED_100KHz;
+	i2cm_bh1750_config.reg_addr_mode = I2CM_ONE_BYTE;
+	i2cm_bh1750_config.reg_size = 2;
+
+	uint32 count = 0;
+	uint16 reg = 0x21;
+	uint16 data = 0;
+	while (1)
+	{
+		if (I2CM_Read(&i2cm_bh1750_config, reg, (uint8 *)&data) == I2CM_OK)
+		{
+			printf("%d: Current value of BH1750: 0x%04X\n",
+								++count, reg, data);
+		}
+		else
+			printf("%d: Timeout when reading BH1750\n", ++count);
+
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
 }
@@ -90,8 +102,18 @@ void task_gpio(void *param)
 void user_init(void)
 {
 	/* Initialize UART for printing log */
-	xTaskCreate(task_uart, "task_uart", 384, NULL, 5, NULL);
+	UART_Config uart_config;
+	uart_config.port_no = UART_PORT0;
+	uart_config.baud_rate = UART_BAUD_RATE_460800;
+	uart_config.word_length = UART_WORD_LENGTH_8b;
+	uart_config.parity = UART_PARITY_NONE;
+	uart_config.stop_bits = UART_STOP_BITS_1;
+	uart_config.hw_flow_ctrl = UART_HW_FLOW_CTRL_NONE;
+	UART_Init(&uart_config);
+
 	/* Test GPIO */
-	xTaskCreate(task_gpio, "task_gpio", 384, NULL, 5, NULL);
+	xTaskCreate(task_gpio, "task_gpio", 128, NULL, 5, NULL);
+	/* Test I2C */
+	xTaskCreate(task_i2c, "task_i2c", 128, NULL, 5, NULL);
 }
 

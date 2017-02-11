@@ -51,7 +51,9 @@
 #define GPIO_PIN_ADDR(i)	(GPIO_PIN0_ADDRESS + i * 4)
 
 /* Private type definition section ========================================== */
+
 /* Private function prototype section ======================================= */
+
 /* Public function definition section ======================================= */
 void GPIO_Init(GPIO_Config *config)
 {

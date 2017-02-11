@@ -2,7 +2,9 @@
 #define __UART_H__
 
 /* Inclusion section ======================================================== */
+
 /* Public macro definition section ========================================== */
+
 /* Public type definition section =========================================== */
 typedef enum
 {

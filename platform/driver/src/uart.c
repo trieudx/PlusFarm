@@ -30,6 +30,7 @@
 #define UART_TXFIFO_EMPTY_THRHD_S		8
 
 /* Private type definition section ========================================== */
+
 /* Private function prototype section ======================================= */
 static void uart_tx_one_char(UART_PortNo port_no, char tx_char);
 static void uart0_write_char(char c);

@@ -2,16 +2,20 @@
 #define __GPIO_H__
 
 /* Inclusion section ======================================================== */
+
 /* Public macro definition section ========================================== */
+
 /* Public type definition section =========================================== */
 typedef enum
 {
 	GPIO_PIN_0		= 0x00,
-	GPIO_PIN_4		= 0x04,
+	GPIO_PIN_2		= 0x02,
+	GPIO_PIN_4		= 0x04,		/* Blue LED on ESP-12F module */
 	GPIO_PIN_5		= 0x05,
-	GPIO_PIN_12		= 0x0C,
-	GPIO_PIN_13		= 0x0D,
-	GPIO_PIN_15		= 0x0F,
+	GPIO_PIN_12		= 0x0C,		/* Green LED on Extended ESP-12F module */
+	GPIO_PIN_13		= 0x0D,		/* Blue LED on Extended ESP-12F module */
+	GPIO_PIN_14		= 0x0E,
+	GPIO_PIN_15		= 0x0F,		/* Red LED on Extended ESP-12F module */
 	GPIO_PIN_16		= 0x1F,
 } GPIO_Pin;
 

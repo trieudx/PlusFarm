@@ -62,6 +62,7 @@ OBJ_FILES			:= ${OBJ_DIR}/user_main.o
 ## DRIVER
 OBJ_FILES			+= ${OBJ_DIR}/gpio.o
 OBJ_FILES			+= ${OBJ_DIR}/uart.o
+OBJ_FILES			+= ${OBJ_DIR}/i2cm.o
 ## ESPRESSIF
 OBJ_FILES			+= ${OBJ_DIR}/upgrade_crc32.o
 OBJ_FILES			+= ${OBJ_DIR}/upgrade_lib.o
@@ -159,6 +160,7 @@ CFLAGS_CPU			+= -ffunction-sections
 CFLAGS_CPU			+= -fdata-sections
 CFLAGS_CPU			+= -fno-builtin-printf
 CFLAGS_CPU			+= -fno-aggressive-loop-optimizations
+#CFLAGS_CPU			+= -Wall
 
 ## ------------------------------ MACRO ------------------------------------- ##
 CFLAGS_DEF			:= -D ICACHE_FLASH -D MEMLEAK_DEBUG
