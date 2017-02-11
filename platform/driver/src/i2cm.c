@@ -2,6 +2,7 @@
 #include "esp_common.h"
 #include "i2cm.h"
 #include "gpio.h"
+#include "FreeRTOS.h"
 
 /* Private macro definition section ========================================= */
 #define I2CM_WRITE						0x00
@@ -51,7 +52,7 @@ void I2CM_Init(I2CM_HwConfig *hw_config)
 }
 
 I2CM_Return I2CM_Write(I2CM_SlaveConfig *slave_config,
-											uint16 reg_addr, uint8 *data)
+							uint16 reg_addr, uint8 access_time_ms, uint8 *data)
 {
 	I2CM_Return ret;
 	uint8 reg_value[2];
@@ -69,16 +70,20 @@ I2CM_Return I2CM_Write(I2CM_SlaveConfig *slave_config,
 
 	if (ret == I2CM_OK)
 	{
-		/* Write data to this register */
-		ret = i2cm_transmit(slave_config->slave_addr,
+		vTaskDelay(access_time_ms / portTICK_RATE_MS);
+		if (data != NULL)
+		{
+			/* Write data to this register */
+			ret = i2cm_transmit(slave_config->slave_addr,
 											slave_config->reg_size, data);
+		}
 	}
 
 	return ret;
 }
 
 I2CM_Return I2CM_Read(I2CM_SlaveConfig *slave_config,
-											uint16 reg_addr, uint8 *data)
+							uint16 reg_addr, uint8 access_time_ms, uint8 *data)
 {
 	I2CM_Return ret;
 	uint8 reg_value[2];
@@ -96,9 +101,13 @@ I2CM_Return I2CM_Read(I2CM_SlaveConfig *slave_config,
 
 	if (ret == I2CM_OK)
 	{
-		/* Read data from this register */
-		ret = i2cm_receive(slave_config->slave_addr,
+		vTaskDelay(access_time_ms / portTICK_RATE_MS);
+		if (data != NULL)
+		{
+			/* Read data from this register */
+			ret = i2cm_receive(slave_config->slave_addr,
 											slave_config->reg_size, data);
+		}
 	}
 
 	return ret;
@@ -238,6 +247,7 @@ static void i2cm_rx_one_byte(uint8 *data, bool stop)
 	os_delay_us(i2cm_delay_half_cycle);
 	GPIO_SetLow(i2cm_scl_pin);
 	os_delay_us(i2cm_delay_quarter_cycle);
+	GPIO_SetHigh(i2cm_sda_pin);
 
 	if (stop)
 	{

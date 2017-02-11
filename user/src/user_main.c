@@ -78,13 +78,14 @@ void task_i2c(void *param)
 
 	uint32 count = 0;
 	uint16 reg = 0x21;
-	uint16 data = 0;
+	uint8 data[2];
+
 	while (1)
 	{
-		if (I2CM_Read(&i2cm_bh1750_config, reg, (uint8 *)&data) == I2CM_OK)
+		if (I2CM_Read(&i2cm_bh1750_config, reg, 200, data) == I2CM_OK)
 		{
 			printf("%d: Current value of BH1750: 0x%04X\n",
-								++count, reg, data);
+								++count, (data[0] << 8) | data[1]);
 		}
 		else
 			printf("%d: Timeout when reading BH1750\n", ++count);

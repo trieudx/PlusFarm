@@ -42,8 +42,8 @@ typedef struct
 /* Public function prototype section ======================================== */
 void I2CM_Init(I2CM_HwConfig *hw_config);
 I2CM_Return I2CM_Write(I2CM_SlaveConfig *slave_config,
-											uint16 reg_addr, uint8 *data);
+							uint16 reg_addr, uint8 access_time_ms, uint8 *data);
 I2CM_Return I2CM_Read(I2CM_SlaveConfig *slave_config,
-											uint16 reg_addr, uint8 *data);
+							uint16 reg_addr, uint8 access_time_ms, uint8 *data);
 
 #endif
