@@ -21,9 +21,9 @@ typedef enum
 
 typedef enum
 {
-	I2CM_ONE_BYTE	= 0x1,
-	I2CM_TWO_BYTES	= 0x2
-} I2CM_AddrMode;
+	I2CM_REG_ADDR_ONE_BYTE	= 0x1,
+	I2CM_REG_ADDR_TWO_BYTES	= 0x2
+} I2CM_RegAddrMode;
 
 typedef struct
 {
@@ -33,17 +33,21 @@ typedef struct
 
 typedef struct
 {
-	uint8			slave_addr;
-	I2CM_SpeedMode	speed_mode;
-	I2CM_AddrMode	reg_addr_mode;
-	uint8			reg_size;
+	uint8				slave_addr;
+	I2CM_SpeedMode		speed_mode;
+	I2CM_RegAddrMode	reg_addr_mode;
+	uint8				reg_size;
 } I2CM_SlaveConfig;
 
 /* Public function prototype section ======================================== */
 void I2CM_Init(I2CM_HwConfig *hw_config);
+I2CM_Return I2CM_Transmit(uint8 slave_addr, I2CM_SpeedMode speed_mode,
+												uint8 length, uint8 *data);
+I2CM_Return I2CM_Receive(uint8 slave_addr, I2CM_SpeedMode speed_mode,
+												uint8 length, uint8 *data);
 I2CM_Return I2CM_Write(I2CM_SlaveConfig *slave_config,
-							uint16 reg_addr, uint8 access_time_ms, uint8 *data);
+												uint16 reg_addr, uint8 *data);
 I2CM_Return I2CM_Read(I2CM_SlaveConfig *slave_config,
-							uint16 reg_addr, uint8 access_time_ms, uint8 *data);
+												uint16 reg_addr, uint8 *data);
 
 #endif

@@ -4,6 +4,7 @@
 #include "uart.h"
 #include "gpio.h"
 #include "i2cm.h"
+#include "bh1750.h"
 
 /******************************************************************************
  * FunctionName : user_rf_cal_sector_set
@@ -70,22 +71,16 @@ void task_i2c(void *param)
 	i2cm_hwconfig.sda_pin = GPIO_PIN_14;
 	I2CM_Init(&i2cm_hwconfig);
 
-	I2CM_SlaveConfig i2cm_bh1750_config;
-	i2cm_bh1750_config.slave_addr = 0x23;
-	i2cm_bh1750_config.speed_mode = I2CM_SPEED_100KHz;
-	i2cm_bh1750_config.reg_addr_mode = I2CM_ONE_BYTE;
-	i2cm_bh1750_config.reg_size = 2;
-
 	uint32 count = 0;
-	uint16 reg = 0x21;
-	uint8 data[2];
+	uint16 data;
 
 	while (1)
 	{
-		if (I2CM_Read(&i2cm_bh1750_config, reg, 200, data) == I2CM_OK)
+		if (BH1750_ReadAmbientLight(BH1750_0P5LX_RES_120MS_MT, &data)
+			== I2CM_OK)
 		{
-			printf("%d: Current value of BH1750: 0x%04X\n",
-								++count, (data[0] << 8) | data[1]);
+			printf("%d: Current ambient light from BH1750: 0x%04X\n",
+								++count, data);
 		}
 		else
 			printf("%d: Timeout when reading BH1750\n", ++count);

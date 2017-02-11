@@ -59,6 +59,7 @@ GEN_TOOL_FILE		:= ${TOOL_DIR}/gen_appbin.py
 ## ----------------------------- OBJECT ------------------------------------- ##
 ## USER
 OBJ_FILES			:= ${OBJ_DIR}/user_main.o
+OBJ_FILES			+= ${OBJ_DIR}/bh1750.o
 ## DRIVER
 OBJ_FILES			+= ${OBJ_DIR}/gpio.o
 OBJ_FILES			+= ${OBJ_DIR}/uart.o
