@@ -263,8 +263,8 @@ flash:
 	@esptool.py --port /dev/ttyUSB0 --baud ${BAUD_RATE} erase_flash
 	@esptool.py --port /dev/ttyUSB0 --baud ${BAUD_RATE} write_flash \
 	--flash_mode qio --flash_freq 80m --flash_size 32m \
-	0x00000 ${BIN_DIR}/sprinkler.flash.bin \
-	0x10000 ${BIN_DIR}/sprinkler.irom0text.bin \
+	0x00000 ${BIN_DIR}/${PROJECT_NAME}.flash.bin \
+	0x10000 ${BIN_DIR}/${PROJECT_NAME}.irom0text.bin \
 	0x3FC000 ${BIN_DIR}/esp_init_data_default.bin
 
 debug:
