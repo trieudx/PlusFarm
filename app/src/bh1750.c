@@ -18,17 +18,23 @@
 /* Private function prototype section ======================================= */
 
 /* Private variable section ================================================= */
-static I2CM_SlaveConfig bh1750_config =
-{
-	.start_mode = I2CM_START_MODE_I2C,
-	.slave_addr = BH1750_ADDR_LOW,
-	.speed_mode = I2CM_SPEED_250KHz,
-	.access_time = 0,
-	.reg_addr_mode = I2CM_REG_ADDR_ONE_BYTE,
-	.reg_size = 2
-};
+static I2CM_SlaveConfig bh1750_config;
 
 /* Public function definition section ======================================= */
+void BH1750_Init(void)
+{
+	/* Initialize I2C master channel */
+	I2CM_Init();
+
+	/* Configure I2C parameters for BH1750 */
+	bh1750_config.start_mode = I2CM_START_MODE_I2C;
+	bh1750_config.slave_addr = BH1750_ADDR_LOW;
+	bh1750_config.speed_mode = I2CM_SPEED_250KHz;
+	bh1750_config.access_time = 0;
+	bh1750_config.reg_addr_mode = I2CM_REG_ADDR_ONE_BYTE;
+	bh1750_config.reg_size = 2;
+}
+
 I2CM_Return BH1750_PowerON(void)
 {
 	uint8 mode = BH1750_POWER_ON;

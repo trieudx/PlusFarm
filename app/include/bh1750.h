@@ -15,6 +15,7 @@ typedef enum
 } BH1750_OpMode;
 
 /* Public function prototype section ======================================== */
+void BH1750_Init(void);
 I2CM_Return BH1750_PowerON(void);
 I2CM_Return BH1750_Sleep(void);
 I2CM_Return BH1750_Reset(void);

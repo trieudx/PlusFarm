@@ -16,8 +16,19 @@
 static I2CM_Return sht1x_read(uint8 mode, uint16 access_time, uint16 *data);
 
 /* Private variable section ================================================= */
+static I2CM_SlaveConfig sht1x_config;
 
 /* Public function definition section ======================================= */
+void SHT1X_Init(void)
+{
+	/* Initialize I2C master channel */
+	I2CM_Init();
+
+	/* Configure I2C parameters for SHT1X */
+	sht1x_config.start_mode = I2CM_START_MODE_SHTXX;
+	sht1x_config.speed_mode = I2CM_SPEED_100KHz;
+}
+
 I2CM_Return SHT1X_ReadTemperature(uint16 *data)
 {
 	return sht1x_read(SHT1X_TEMPERATURE, SHT1X_T_MT_MS, data);
@@ -31,13 +42,10 @@ I2CM_Return SHT1X_ReadRelativeHumidity(uint16 *data)
 /* Private function definition section ====================================== */
 static I2CM_Return sht1x_read(uint8 mode, uint16 access_time, uint16 *data)
 {
-	I2CM_SlaveConfig sht1x_config;
 	I2CM_Return ret;
 	uint8 uc_data[2];
 
-	sht1x_config.start_mode = I2CM_START_MODE_SHTXX;
 	sht1x_config.slave_addr = mode;
-	sht1x_config.speed_mode = I2CM_SPEED_100KHz;
 	sht1x_config.access_time = access_time;
 
 	ret = I2CM_Receive(&sht1x_config, 2, uc_data);

@@ -50,7 +50,7 @@ uint32 user_rf_cal_sector_set(void)
 void task_gpio(void *param)
 {
 	GPIO_Config gpio_config;
-	gpio_config.pin = GPIO_PIN_13;
+	gpio_config.pin = GPIO_PIN_15;
 	gpio_config.mode = GPIO_MODE_OUT_PP;
 	gpio_config.pull = GPIO_NO_PULL;
 	GPIO_Init(&gpio_config);
@@ -64,15 +64,12 @@ void task_gpio(void *param)
 	}
 }
 
-void task_i2c(void *param)
+void task_bh1750(void *param)
 {
-	I2CM_HwConfig i2cm_hwconfig;
-	i2cm_hwconfig.scl_pin = GPIO_PIN_2;
-	i2cm_hwconfig.sda_pin = GPIO_PIN_14;
-	I2CM_Init(&i2cm_hwconfig);
-
 	uint32 count = 0;
 	uint16 data;
+
+	BH1750_Init();
 
 	while (1)
 	{
@@ -85,15 +82,28 @@ void task_i2c(void *param)
 		else
 			printf("%d: Timeout when reading BH1750\n", ++count);
 
+		vTaskDelay(1000 / portTICK_RATE_MS);
+	}
+}
+
+void task_sht1x(void *param)
+{
+	uint32 count = 0;
+	uint16 data;
+
+	SHT1X_Init();
+
+	while (1)
+	{
 		if (SHT1X_ReadTemperature(&data) == I2CM_OK)
-			printf("Current temperature: 0x%04X\n", data);
+			printf("%d: Current temperature: 0x%04X\n", ++count, data);
 		else
-			printf("Timeout when reading SHT1x\n");
+			printf("%d: Timeout when reading SHT1x\n", ++count);
 
 		if (SHT1X_ReadRelativeHumidity(&data) == I2CM_OK)
-			printf("Current RH: 0x%04X\n", data);
+			printf("%d: Current RH: 0x%04X\n", count, data);
 		else
-			printf("Timeout when reading SHT1X\n");
+			printf("%d: Timeout when reading SHT1x\n", count);
 
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
@@ -119,7 +129,9 @@ void user_init(void)
 
 	/* Test GPIO */
 	xTaskCreate(task_gpio, "task_gpio", 128, NULL, 5, NULL);
-	/* Test I2C */
-	xTaskCreate(task_i2c, "task_i2c", 128, NULL, 5, NULL);
+	/* Test BH1750 */
+	xTaskCreate(task_bh1750, "task_bh1750", 128, NULL, 5, NULL);
+	/* Test SHT1X */
+	xTaskCreate(task_sht1x, "task_sht1x", 128, NULL, 5, NULL);
 }
 
