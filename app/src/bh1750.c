@@ -1,41 +1,46 @@
 /* Inclusion section ======================================================== */
 #include "esp_common.h"
 #include "bh1750.h"
-#include "FreeRTOS.h"
 
 /* Private macro definition section ========================================= */
 #define BH1750_ADDR_LOW			0x23
 #define BH1750_ADDR_HIGH		0x5C
 
-#define BH1750_ADDR				BH1750_ADDR_LOW
-#define BH1750_SPEED_MODE		I2CM_SPEED_100KHz
-
 #define BH1750_POWER_DOWN		0x00
 #define BH1750_POWER_ON			0x01
 #define BH1750_RESET			0x07
 
-#define BH1750_MT_HRES_MS		180
-#define BH1750_MT_LRES_MS		30
+#define BH1750_HRES_MT_MS		180
+#define BH1750_LRES_MT_MS		30
 
 /* Private type definition section ========================================== */
 
 /* Private function prototype section ======================================= */
 
 /* Private variable section ================================================= */
+static I2CM_SlaveConfig bh1750_config =
+{
+	.start_mode = I2CM_START_MODE_I2C,
+	.slave_addr = BH1750_ADDR_LOW,
+	.speed_mode = I2CM_SPEED_250KHz,
+	.access_time = 0,
+	.reg_addr_mode = I2CM_REG_ADDR_ONE_BYTE,
+	.reg_size = 2
+};
 
 /* Public function definition section ======================================= */
 I2CM_Return BH1750_PowerON(void)
 {
 	uint8 mode = BH1750_POWER_ON;
 
-	return I2CM_Transmit(BH1750_ADDR, BH1750_SPEED_MODE, 1, &mode);
+	return I2CM_Transmit(&bh1750_config, 1, &mode);
 }
 
 I2CM_Return BH1750_Sleep(void)
 {
 	uint8 mode = BH1750_POWER_DOWN;
 
-	return I2CM_Transmit(BH1750_ADDR, BH1750_SPEED_MODE, 1, &mode);
+	return I2CM_Transmit(&bh1750_config, 1, &mode);
 }
 
 I2CM_Return BH1750_Reset(void)
@@ -48,7 +53,7 @@ I2CM_Return BH1750_Reset(void)
 	if (ret == I2CM_OK)
 	{
 		/* Reset sensor */
-		ret = I2CM_Transmit(BH1750_ADDR, BH1750_SPEED_MODE, 1, &mode);
+		ret = I2CM_Transmit(&bh1750_config, 1, &mode);
 	}
 
 	return ret;
@@ -57,25 +62,17 @@ I2CM_Return BH1750_Reset(void)
 I2CM_Return BH1750_ReadAmbientLight(BH1750_OpMode mode, uint16 *data)
 {
 	I2CM_Return ret;
+	uint8 uc_data[2];
 
-	/* Set measurement mode */
-	ret = I2CM_Transmit(BH1750_ADDR, BH1750_SPEED_MODE, 1, (uint8 *)&mode);
+	ret = I2CM_Read(&bh1750_config, mode,
+					(mode == BH1750_4LX_RES_16MS_MT) ?
+						BH1750_LRES_MT_MS : BH1750_HRES_MT_MS,
+					uc_data);
+
 	if (ret == I2CM_OK)
 	{
-		uint8 uc_data[2];
-
-		/* Wait for measurement completion */
-		if (mode == BH1750_4LX_RES_16MS_MT)
-			vTaskDelay(BH1750_MT_LRES_MS / portTICK_RATE_MS);
-		else
-			vTaskDelay(BH1750_MT_HRES_MS / portTICK_RATE_MS);
-		/* Read data */
-		ret = I2CM_Receive(BH1750_ADDR, BH1750_SPEED_MODE, 2, uc_data);
-		if (ret == I2CM_OK)
-		{
-			/* Get ambient light */
-			*data = (((uc_data[0] << 8) | uc_data[1]) * 6) / 5;
-		}
+		/* Get ambient light value */
+		*data = (((uc_data[0] << 8) | uc_data[1]) * 5) / 6;
 	}
 
 	return ret;

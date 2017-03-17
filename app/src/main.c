@@ -3,8 +3,8 @@
 #include "task.h"
 #include "uart.h"
 #include "gpio.h"
-#include "i2cm.h"
 #include "bh1750.h"
+#include "sht1x.h"
 
 /******************************************************************************
  * FunctionName : user_rf_cal_sector_set
@@ -84,6 +84,16 @@ void task_i2c(void *param)
 		}
 		else
 			printf("%d: Timeout when reading BH1750\n", ++count);
+
+		if (SHT1X_ReadTemperature(&data) == I2CM_OK)
+			printf("Current temperature: 0x%04X\n", data);
+		else
+			printf("Timeout when reading SHT1x\n");
+
+		if (SHT1X_ReadRelativeHumidity(&data) == I2CM_OK)
+			printf("Current RH: 0x%04X\n", data);
+		else
+			printf("Timeout when reading SHT1X\n");
 
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}

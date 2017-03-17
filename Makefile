@@ -8,7 +8,7 @@ PROJECT_ROOT		?= ${PWD}
 OUTPUT_DIR			?= ${PROJECT_ROOT}/output
 PLATFORM_DIR		?= ${PROJECT_ROOT}/platform
 TOOL_DIR			?= ${PROJECT_ROOT}/tools
-USER_DIR			?= ${PROJECT_ROOT}/user
+APP_DIR				?= ${PROJECT_ROOT}/app
 
 DRIVER_DIR			?= ${PLATFORM_DIR}/driver
 ESPRESSIF_DIR		?= ${PLATFORM_DIR}/espressif
@@ -24,8 +24,8 @@ IMAGE_DIR			?= ${OUTPUT_DIR}/image
 BIN_DIR				?= ${OUTPUT_DIR}/bin
 
 ## ----------------------------- SOURCE ------------------------------------- ##
-## USER
-VPATH				:= :${USER_DIR}/src
+## APP
+VPATH				:= :${APP_DIR}/src
 ## DRIVER
 VPATH				+= :${DRIVER_DIR}/src
 ## ESPRESSIF
@@ -46,7 +46,7 @@ VPATH				+= :${LWIP_DIR}/src/netif
 ## ========================================================================== ##
 ## ------------------------------ FILES ------------------------------------- ##
 ## ========================================================================== ##
-PROJECT_NAME		= sprinkler
+PROJECT_NAME		= SmartFarm
 ## LINKER
 LD_FILE				:= ${LD_DIR}/eagle.app.v6.ld
 ## IMAGE
@@ -57,9 +57,10 @@ BIN_FILE			:= ${BIN_DIR}/${PROJECT_NAME}.app.bin
 GEN_TOOL_FILE		:= ${TOOL_DIR}/gen_appbin.py
 
 ## ----------------------------- OBJECT ------------------------------------- ##
-## USER
-OBJ_FILES			:= ${OBJ_DIR}/user_main.o
+## APP
+OBJ_FILES			:= ${OBJ_DIR}/main.o
 OBJ_FILES			+= ${OBJ_DIR}/bh1750.o
+OBJ_FILES			+= ${OBJ_DIR}/sht1x.o
 ## DRIVER
 OBJ_FILES			+= ${OBJ_DIR}/gpio.o
 OBJ_FILES			+= ${OBJ_DIR}/uart.o
@@ -133,18 +134,11 @@ OBJ_FILES			+= ${OBJ_DIR}/slipif.o
 ## ========================================================================== ##
 
 ## ---------------------------- COMPILER ------------------------------------ ##
-ifeq (${COMPILE}, xcc)
-AR					= xt-ar
-CC					= xt-xcc
-NM					= xt-nm
-CPP					= xt-xt++
-OBJCOPY				= xt-objcopy
-else
 AR					= xtensa-lx106-elf-ar
 CC					= xtensa-lx106-elf-gcc
 NM					= xtensa-lx106-elf-nm
 OBJCOPY				= xtensa-lx106-elf-objcopy
-endif
+SIZE				= xtensa-lx106-elf-size
 
 ## ------------------------------- CPU -------------------------------------- ##
 CFLAGS_CPU			:= -Os -g
@@ -169,8 +163,8 @@ CFLAGS_DEF			+= -D LWIP_OPEN_SRC
 CFLAGS_DEF			+= -D PBUF_RSV_FOR_WLAN -D EBUF_LWIP
 
 ## ---------------------------- INCLUSION ----------------------------------- ##
-## USER
-CFLAGS_INC			:= -I ${USER_DIR}/include
+## APP
+CFLAGS_INC			:= -I ${APP_DIR}/include
 ## DRIVER
 CFLAGS_INC			+= -I ${DRIVER_DIR}/include
 ## ESPRESSIF
@@ -215,6 +209,7 @@ LD_FLAGS			+= -Wl,--end-group
 ## ----------------------------- TARGETS ------------------------------------ ##
 ## ========================================================================== ##
 FREQ_DIV			= 0
+BAUD_RATE			= 460800
 # SPI_MODE:
 #  0 = QIO
 #  1 = QOUT
@@ -230,12 +225,9 @@ SPI_MODE			= 0
 #  6 = 4096KB (1024KB + 1024KB)
 SIZE_MAP			= 4
 
-all: ${OBJ_FILES} ${IMAGE_FILE} ${BIN_FILE}
+.PHONY:
 
-clean:
-	@${RM} -r ${OBJ_DIR}
-	@${RM} -r ${IMAGE_DIR}
-	@${RM} ${BIN_DIR}/${PROJECT_NAME}*
+all: ${OBJ_FILES} ${IMAGE_FILE} ${BIN_FILE}
 
 ${OBJ_DIR}/%.o: %.c
 	@mkdir -p ${OBJ_DIR}
@@ -244,7 +236,9 @@ ${OBJ_DIR}/%.o: %.c
 
 ${IMAGE_FILE}: ${OBJ_FILES}
 	@mkdir -p ${IMAGE_DIR}
-	@${CC} ${LD_FLAGS} -o ${@} 
+	@echo "  LD   ${@}"
+	@${CC} ${LD_FLAGS} -o ${@}
+	@${SIZE} ${@} 
 
 ${BIN_FILE}: ${IMAGE_FILE}
 	@mkdir -p ${BIN_DIR}
@@ -259,14 +253,25 @@ ${BIN_FILE}: ${IMAGE_FILE}
 	@mv eagle.app.v6.irom0text.bin ${BIN_DIR}/${PROJECT_NAME}.irom0text.bin
 	@rm eagle.app*
 	@echo ""
-	@echo "Generated ${PROJECT_NAME}.flash.bin and ${PROJECT_NAME}.irom0text.bin successully in ${BIN_DIR}"
-	@echo "${PROJECT_NAME}.flash.bin-------->0x00000"
-	@echo "${PROJECT_NAME}.irom0text.bin---->0x01000"
-	@echo "!!!"
+
+clean:
+	@${RM} -r ${OBJ_DIR}
+	@${RM} -r ${IMAGE_DIR}
+	@${RM} ${BIN_DIR}/${PROJECT_NAME}*
+
+flash:
+	@esptool.py --port /dev/ttyUSB0 --baud ${BAUD_RATE} erase_flash
+	@esptool.py --port /dev/ttyUSB0 --baud ${BAUD_RATE} write_flash \
+	--flash_mode qio --flash_freq 80m --flash_size 32m \
+	0x00000 ${BIN_DIR}/sprinkler.flash.bin \
+	0x10000 ${BIN_DIR}/sprinkler.irom0text.bin \
+	0x3FC000 ${BIN_DIR}/esp_init_data_default.bin
+
+debug:
+	@sudo minicom --device /dev/ttyUSB0 --baudrate ${BAUD_RATE}
+
+flash_and_debug: flash debug
 
 # Include the automatically generated dependency files.
 sinclude ${wildcard ${OBJ_DIR}/*.d}
-
-.PHONY: FORCE
-FORCE:
 

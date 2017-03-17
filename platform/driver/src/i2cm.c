@@ -2,6 +2,7 @@
 #include "esp_common.h"
 #include "i2cm.h"
 #include "gpio.h"
+#include "FreeRTOS.h"
 
 /* Private macro definition section ========================================= */
 #define I2CM_WRITE						0x00
@@ -11,7 +12,7 @@
 
 /* Private function prototype section ======================================= */
 static void i2cm_set_speed(I2CM_SpeedMode speed_mode);
-static void i2cm_start(void);
+static void i2cm_start(I2CM_StartMode start_mode);
 static void i2cm_stop(void);
 static I2CM_Return i2cm_access(I2CM_SlaveConfig *slave_config, uint16 reg_addr);
 static I2CM_Return i2cm_tx_one_byte(uint8 data, bool stop);
@@ -49,56 +50,66 @@ void I2CM_Init(I2CM_HwConfig *hw_config)
 	i2cm_sda_pin = hw_config->sda_pin;
 }
 
-I2CM_Return I2CM_Transmit(uint8 slave_addr, I2CM_SpeedMode speed_mode,
+I2CM_Return I2CM_Transmit(I2CM_SlaveConfig *slave_config,
 												uint8 length, uint8 *data)
 {
 	I2CM_Return ret;
 	uint8 i;
 
 	/* Set speed mode */
-	i2cm_set_speed(speed_mode);
+	i2cm_set_speed(slave_config->speed_mode);
 
 	/* Send START condition */
-	i2cm_start();
+	i2cm_start(slave_config->start_mode);
 
 	/* Send slave address with WRITE action */
-	ret = i2cm_tx_one_byte((slave_addr << 1) | I2CM_WRITE, false);
+	ret = i2cm_tx_one_byte((slave_config->slave_addr << 1) | I2CM_WRITE, false);
 
-	/* Transmit data to slave */
-	for (i = 0; (ret == I2CM_OK) && (i < length); i++)
+	if (ret == I2CM_OK)
 	{
-		ret = i2cm_tx_one_byte(data[i], (i == (length - 1)));
+		/* Wait for completion of slave access */
+		vTaskDelay(slave_config->access_time / portTICK_RATE_MS);
+		/* Transmit data to slave */
+		for (i = 0; (ret == I2CM_OK) && (i < length); i++)
+		{
+			ret = i2cm_tx_one_byte(data[i], (i == (length - 1)));
+		}
 	}
 
 	return ret;
 }
 
-I2CM_Return I2CM_Receive(uint8 slave_addr, I2CM_SpeedMode speed_mode,
+I2CM_Return I2CM_Receive(I2CM_SlaveConfig *slave_config,
 												uint8 length, uint8 *data)
 {
 	I2CM_Return ret;
 	uint8 i;
 
 	/* Set speed mode */
-	i2cm_set_speed(speed_mode);
+	i2cm_set_speed(slave_config->speed_mode);
 
 	/* Send START condition */
-	i2cm_start();
+	i2cm_start(slave_config->start_mode);
 
 	/* Send slave address with READ action */
-	ret = i2cm_tx_one_byte((slave_addr << 1) | I2CM_READ, false);
+	ret = i2cm_tx_one_byte((slave_config->slave_addr << 1) | I2CM_READ, false);
 
-	/* Receive data from slave */
-	for (i = 0; (ret == I2CM_OK) && (i < length); i++)
+	if (ret == I2CM_OK)
 	{
-		i2cm_rx_one_byte(data + i, (i == (length - 1)));
+		/* Wait for completion of slave access */
+		vTaskDelay(slave_config->access_time / portTICK_RATE_MS);
+		/* Receive data from slave */
+		for (i = 0; (ret == I2CM_OK) && (i < length); i++)
+		{
+			i2cm_rx_one_byte(data + i, (i == (length - 1)));
+		}
 	}
 
 	return ret;
 }
 
 I2CM_Return I2CM_Write(I2CM_SlaveConfig *slave_config,
-												uint16 reg_addr, uint8 *data)
+						uint16 reg_addr, uint16 reg_access_time, uint8 *data)
 {
 	I2CM_Return ret;
 
@@ -107,16 +118,17 @@ I2CM_Return I2CM_Write(I2CM_SlaveConfig *slave_config,
 
 	if (ret == I2CM_OK)
 	{
+		/* Wait for completion of register access */
+		vTaskDelay(reg_access_time / portTICK_RATE_MS);
 		/* Write data to this register */
-		ret = I2CM_Transmit(slave_config->slave_addr, slave_config->speed_mode,
-											slave_config->reg_size, data);
+		ret = I2CM_Transmit(slave_config, slave_config->reg_size, data);
 	}
 
 	return ret;
 }
 
 I2CM_Return I2CM_Read(I2CM_SlaveConfig *slave_config,
-												uint16 reg_addr, uint8 *data)
+						uint16 reg_addr, uint16 reg_access_time, uint8 *data)
 {
 	I2CM_Return ret;
 
@@ -125,9 +137,10 @@ I2CM_Return I2CM_Read(I2CM_SlaveConfig *slave_config,
 
 	if (ret == I2CM_OK)
 	{
+		/* Wait for completion of register access */
+		vTaskDelay(reg_access_time / portTICK_RATE_MS);
 		/* Read data from this register */
-		ret = I2CM_Receive(slave_config->slave_addr, slave_config->speed_mode,
-										slave_config->reg_size, data);
+		ret = I2CM_Receive(slave_config, slave_config->reg_size, data);
 	}
 
 	return ret;
@@ -148,12 +161,32 @@ static void i2cm_set_speed(I2CM_SpeedMode speed_mode)
 	}
 }
 
-static void i2cm_start(void)
+static void i2cm_start(I2CM_StartMode start_mode)
 {
-	GPIO_SetLow(i2cm_sda_pin);
-	os_delay_us(i2cm_delay_half_cycle);
-	GPIO_SetLow(i2cm_scl_pin);
-	os_delay_us(i2cm_delay_quarter_cycle);
+	if (start_mode == I2CM_START_MODE_I2C)
+	{
+		GPIO_SetLow(i2cm_sda_pin);
+		os_delay_us(i2cm_delay_half_cycle);
+		GPIO_SetLow(i2cm_scl_pin);
+		os_delay_us(i2cm_delay_quarter_cycle);
+	}
+	else
+	{
+		GPIO_SetLow(i2cm_scl_pin);
+		os_delay_us(i2cm_delay_quarter_cycle);
+		GPIO_SetHigh(i2cm_scl_pin);
+		os_delay_us(i2cm_delay_quarter_cycle);
+		GPIO_SetLow(i2cm_sda_pin);
+		os_delay_us(i2cm_delay_quarter_cycle);
+		GPIO_SetLow(i2cm_scl_pin);
+		os_delay_us(i2cm_delay_half_cycle);
+		GPIO_SetHigh(i2cm_scl_pin);
+		os_delay_us(i2cm_delay_quarter_cycle);
+		GPIO_SetHigh(i2cm_sda_pin);
+		os_delay_us(i2cm_delay_quarter_cycle);
+		GPIO_SetLow(i2cm_scl_pin);
+		os_delay_us(i2cm_delay_quarter_cycle);
+	}
 }
 
 static void i2cm_stop(void)
@@ -175,8 +208,7 @@ static I2CM_Return i2cm_access(I2CM_SlaveConfig *slave_config, uint16 reg_addr)
 		reg[reg_len++] = reg_addr >> 8;
 	reg[reg_len++] = (uint8)reg_addr;
 
-	return I2CM_Transmit(slave_config->slave_addr, slave_config->speed_mode,
-							reg_len, reg);
+	return I2CM_Transmit(slave_config, reg_len, reg);
 }
 
 static I2CM_Return i2cm_tx_one_byte(uint8 data, bool stop)
