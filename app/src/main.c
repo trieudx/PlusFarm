@@ -1,7 +1,7 @@
 #include "esp_common.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "uart.h"
+#include "log.h"
 #include "gpio.h"
 #include "bh1750.h"
 #include "sht1x.h"
@@ -55,18 +55,17 @@ void task_gpio(void *param)
 	gpio_config.pull = GPIO_NO_PULL;
 	GPIO_Init(&gpio_config);
 
-	uint32 count = 0;
 	while (1)
 	{
 		GPIO_Toggle(gpio_config.pin);
-		printf("%d: GPIO%d toggled\n", ++count, gpio_config.pin);
+		LOG_PRINTF("GPIO%d toggled", gpio_config.pin);
+
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
 }
 
 void task_bh1750(void *param)
 {
-	uint32 count = 0;
 	uint16 data;
 
 	BH1750_Init();
@@ -76,11 +75,10 @@ void task_bh1750(void *param)
 		if (BH1750_ReadAmbientLight(BH1750_0P5LX_RES_120MS_MT, &data)
 			== I2CM_OK)
 		{
-			printf("%d: Current ambient light from BH1750: 0x%04X\n",
-								++count, data);
+			LOG_PRINTF("Current ambient light from BH1750: 0x%04X", data);
 		}
 		else
-			printf("%d: Timeout when reading BH1750\n", ++count);
+			LOG_PRINTF("Timeout when reading BH1750");
 
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
@@ -88,7 +86,6 @@ void task_bh1750(void *param)
 
 void task_sht1x(void *param)
 {
-	uint32 count = 0;
 	uint16 data;
 
 	SHT1X_Init();
@@ -96,14 +93,14 @@ void task_sht1x(void *param)
 	while (1)
 	{
 		if (SHT1X_ReadTemperature(&data) == I2CM_OK)
-			printf("%d: Current temperature: 0x%04X\n", ++count, data);
+			LOG_PRINTF("Current temperature: 0x%04X", data);
 		else
-			printf("%d: Timeout when reading SHT1x\n", ++count);
+			LOG_PRINTF("Timeout when reading SHT1x");
 
 		if (SHT1X_ReadRelativeHumidity(&data) == I2CM_OK)
-			printf("%d: Current RH: 0x%04X\n", count, data);
+			LOG_PRINTF("Current RH: 0x%04X", data);
 		else
-			printf("%d: Timeout when reading SHT1x\n", count);
+			LOG_PRINTF("Timeout when reading SHT1x");
 
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
@@ -117,21 +114,14 @@ void task_sht1x(void *param)
 *******************************************************************************/
 void user_init(void)
 {
-	/* Initialize UART for printing log */
-	UART_Config uart_config;
-	uart_config.port_no = UART_PORT0;
-	uart_config.baud_rate = UART_BAUD_RATE_460800;
-	uart_config.word_length = UART_WORD_LENGTH_8b;
-	uart_config.parity = UART_PARITY_NONE;
-	uart_config.stop_bits = UART_STOP_BITS_1;
-	uart_config.hw_flow_ctrl = UART_HW_FLOW_CTRL_NONE;
-	UART_Init(&uart_config);
+	/* Initialize log */
+	Log_Init();
 
 	/* Test GPIO */
-	xTaskCreate(task_gpio, "task_gpio", 128, NULL, 5, NULL);
+	xTaskCreate(task_gpio, "task_gpio", 256, NULL, 5, NULL);
 	/* Test BH1750 */
-	xTaskCreate(task_bh1750, "task_bh1750", 128, NULL, 5, NULL);
+	xTaskCreate(task_bh1750, "task_bh1750", 256, NULL, 5, NULL);
 	/* Test SHT1X */
-	xTaskCreate(task_sht1x, "task_sht1x", 128, NULL, 5, NULL);
+	xTaskCreate(task_sht1x, "task_sht1x", 256, NULL, 5, NULL);
 }
 

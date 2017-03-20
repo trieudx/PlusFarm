@@ -10,6 +10,7 @@ PLATFORM_DIR		?= ${PROJECT_ROOT}/platform
 TOOL_DIR			?= ${PROJECT_ROOT}/tools
 APP_DIR				?= ${PROJECT_ROOT}/app
 
+COMMON_DIR			?= ${PLATFORM_DIR}/common
 DRIVER_DIR			?= ${PLATFORM_DIR}/driver
 ESPRESSIF_DIR		?= ${PLATFORM_DIR}/espressif
 FREERTOS_DIR		?= ${PLATFORM_DIR}/freertos
@@ -26,10 +27,12 @@ BIN_DIR				?= ${OUTPUT_DIR}/bin
 ## ----------------------------- SOURCE ------------------------------------- ##
 ## APP
 VPATH				:= :${APP_DIR}/src
+## COMMON
+VPATH				+= :${COMMON_DIR}/src
 ## DRIVER
 VPATH				+= :${DRIVER_DIR}/src
 ## ESPRESSIF
-VPATH				+= :${ESPRESSIF_DIR}/upgrade
+VPATH				+= :${ESPRESSIF_DIR}/src
 ## FREERTOS
 VPATH				+= :${FREERTOS_DIR}/src
 ## JSON
@@ -61,6 +64,9 @@ GEN_TOOL_FILE		:= ${TOOL_DIR}/gen_appbin.py
 OBJ_FILES			:= ${OBJ_DIR}/main.o
 OBJ_FILES			+= ${OBJ_DIR}/bh1750.o
 OBJ_FILES			+= ${OBJ_DIR}/sht1x.o
+## COMMON
+OBJ_FILES			+= ${OBJ_DIR}/assert.o
+OBJ_FILES			+= ${OBJ_DIR}/log.o
 ## DRIVER
 OBJ_FILES			+= ${OBJ_DIR}/gpio.o
 OBJ_FILES			+= ${OBJ_DIR}/uart.o
@@ -141,7 +147,7 @@ OBJCOPY				= xtensa-lx106-elf-objcopy
 SIZE				= xtensa-lx106-elf-size
 
 ## ------------------------------- CPU -------------------------------------- ##
-CFLAGS_CPU			:= -Os -g
+CFLAGS_CPU			:= -O3 -g3
 CFLAGS_CPU			+= -MD -MP
 CFLAGS_CPU			+= -Wpointer-arith
 CFLAGS_CPU			+= -Wundef
@@ -158,13 +164,15 @@ CFLAGS_CPU			+= -fno-aggressive-loop-optimizations
 #CFLAGS_CPU			+= -Wall
 
 ## ------------------------------ MACRO ------------------------------------- ##
-CFLAGS_DEF			:= -D ICACHE_FLASH -D MEMLEAK_DEBUG
-CFLAGS_DEF			+= -D LWIP_OPEN_SRC
-CFLAGS_DEF			+= -D PBUF_RSV_FOR_WLAN -D EBUF_LWIP
+CFLAGS_DEF			:= -D ICACHE_FLASH -D LOG_VERBOSE -D USE_FULL_ASSERT
+CFLAGS_DEF			+= -D LWIP_OPEN_SRC -D PBUF_RSV_FOR_WLAN -D EBUF_LWIP
+#CFLAGS_DEF			+= -D MEMLEAK_DEBUG
 
 ## ---------------------------- INCLUSION ----------------------------------- ##
 ## APP
 CFLAGS_INC			:= -I ${APP_DIR}/include
+## COMMON
+CFLAGS_INC			+= -I ${COMMON_DIR}/include
 ## DRIVER
 CFLAGS_INC			+= -I ${DRIVER_DIR}/include
 ## ESPRESSIF
@@ -269,8 +277,6 @@ flash:
 
 debug:
 	@sudo minicom --device /dev/ttyUSB0 --baudrate ${BAUD_RATE}
-
-flash_and_debug: flash debug
 
 # Include the automatically generated dependency files.
 sinclude ${wildcard ${OBJ_DIR}/*.d}

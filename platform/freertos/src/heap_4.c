@@ -172,6 +172,13 @@ static const char mem_debug_file[] ICACHE_RODATA_ATTR STORE_ATTR = "user_app";
 #endif
 
 /*-----------------------------------------------------------*/
+static void vApplicationMallocFailedHook(void)
+{
+	ETS_INTR_LOCK();
+	printf("%s\n", __FUNCTION__);
+	while (1);
+}
+
 bool ICACHE_FLASH_ATTR __attribute__((weak))
 check_memleak_debug_enable()
 {
@@ -392,9 +399,8 @@ void *pvReturn = NULL;
 	{
 		if( pvReturn == NULL )
 		{
-			//extern void vApplicationMallocFailedHook( void );
-			//vApplicationMallocFailedHook();
-			ets_printf("E:M %d\n", xWantedSize);
+			printf("%s: Wanted size: %d\n", __FUNCTION__, xWantedSize);
+			vApplicationMallocFailedHook();
 		}
 	}
 	#endif

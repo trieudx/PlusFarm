@@ -376,11 +376,15 @@ count overflows. */
  */
 #define prvGetTCBFromHandle( pxHandle ) ( ( ( pxHandle ) == NULL ) ? ( tskTCB * ) pxCurrentTCB : ( tskTCB * ) ( pxHandle ) )
 
-/* Callback function prototypes. --------------------------*/
-extern void vApplicationStackOverflowHook( xTaskHandle xTask, signed char *pcTaskName );
-extern void vApplicationTickHook( void );
-
 /* File private functions. --------------------------------*/
+static void vApplicationStackOverflowHook( xTaskHandle xTask, signed char *pcTaskName )
+{
+	ETS_INTR_LOCK();
+	printf("%s: Task handle: %08X. Task name: %s\n",
+			__FUNCTION__, (unsigned int)xTask, pcTaskName);
+	while(1);
+}
+
 
 /*
  * Utility to ready a TCB for a given task.  Mainly just copies the parameters
