@@ -13,14 +13,14 @@ APP_DIR				?= ${PROJECT_ROOT}/app
 
 COMMON_DIR			?= ${PLATFORM_DIR}/common
 DRIVER_DIR			?= ${PLATFORM_DIR}/driver
-ESPRESSIF_DIR		?= ${PLATFORM_DIR}/espressif
+SDK_DIR				?= ${PLATFORM_DIR}/sdk
 FREERTOS_DIR		?= ${PLATFORM_DIR}/freertos
 JSON_DIR			?= ${FRAMEWORK_DIR}/json
 LWIP_DIR			?= ${FRAMEWORK_DIR}/lwip
 MQTT_DIR			?= ${FRAMEWORK_DIR}/mqtt
 
-LIB_DIR				?= ${ESPRESSIF_DIR}/lib
-LD_DIR				?= ${ESPRESSIF_DIR}/ld
+LIB_DIR				?= ${SDK_DIR}/lib
+LD_DIR				?= ${SDK_DIR}/ld
 
 OBJ_DIR				?= ${OUTPUT_DIR}/obj
 IMAGE_DIR			?= ${OUTPUT_DIR}/image
@@ -33,8 +33,8 @@ VPATH				:= :${APP_DIR}/src
 VPATH				+= :${COMMON_DIR}/src
 ## DRIVER
 VPATH				+= :${DRIVER_DIR}/src
-## ESPRESSIF
-VPATH				+= :${ESPRESSIF_DIR}/src
+## SDK
+VPATH				+= :${SDK_DIR}/src
 ## FREERTOS
 VPATH				+= :${FREERTOS_DIR}/src
 ## JSON
@@ -75,7 +75,7 @@ OBJ_FILES			+= ${OBJ_DIR}/log.o
 OBJ_FILES			+= ${OBJ_DIR}/gpio.o
 OBJ_FILES			+= ${OBJ_DIR}/uart.o
 OBJ_FILES			+= ${OBJ_DIR}/i2cm.o
-## ESPRESSIF
+## SDK
 OBJ_FILES			+= ${OBJ_DIR}/upgrade_crc32.o
 OBJ_FILES			+= ${OBJ_DIR}/upgrade_lib.o
 OBJ_FILES			+= ${OBJ_DIR}/upgrade.o
@@ -188,10 +188,10 @@ CFLAGS_INC			:= -I ${APP_DIR}/include
 CFLAGS_INC			+= -I ${COMMON_DIR}/include
 ## DRIVER
 CFLAGS_INC			+= -I ${DRIVER_DIR}/include
-## ESPRESSIF
-CFLAGS_INC			+= -I ${ESPRESSIF_DIR}/include
-CFLAGS_INC			+= -I ${ESPRESSIF_DIR}/include/esp8266
-CFLAGS_INC			+= -I ${ESPRESSIF_DIR}/include/xtensa
+## SDK
+CFLAGS_INC			+= -I ${SDK_DIR}/include
+CFLAGS_INC			+= -I ${SDK_DIR}/include/esp8266
+CFLAGS_INC			+= -I ${SDK_DIR}/include/xtensa
 ## FREERTOS
 CFLAGS_INC			+= -I ${FREERTOS_DIR}/include
 ## JSON
