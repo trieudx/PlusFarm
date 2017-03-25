@@ -35,6 +35,7 @@
 #define __ARCH_CC_H__
 
 #include "c_types.h"
+#include "esp_libc.h"
 
 #define EFAULT 14
 
@@ -66,17 +67,8 @@ typedef int sys_prot_t;
 
 //#define LWIP_DEBUG
 
-#include <stdio.h>
-
-#ifndef os_printf
-#define os_printf(fmt, ...) do {    \
-    static const char flash_str[] ICACHE_RODATA_ATTR STORE_ATTR = fmt;  \
-    printf(flash_str, ##__VA_ARGS__);   \
-    } while(0)
-#endif
-
 #ifdef LWIP_DEBUG
-#define LWIP_PLATFORM_DIAG(x)   do {os_printf x;} while(0)
+#define LWIP_PLATFORM_DIAG(x)   do {os_printf(x);} while(0)
 #define LWIP_PLATFORM_ASSERT(x) do {os_printf(x); sys_arch_assert(__FILE__, __LINE__);} while(0)
 #else
 #define LWIP_PLATFORM_DIAG(x)

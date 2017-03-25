@@ -25,6 +25,8 @@
 #ifndef __ESP_LIBC_H__
 #define __ESP_LIBC_H__
 
+#include "log.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -74,8 +76,7 @@ int os_get_random(unsigned char *buf, size_t len);
 
 /* NOTE: don't use printf_opt in irq handler, for test */
 #define os_printf(fmt, ...) do {    \
-        static const char flash_str[] ICACHE_RODATA_ATTR STORE_ATTR = fmt;  \
-        printf(flash_str, ##__VA_ARGS__);   \
+		LOG_PRINTF(fmt, ##__VA_ARGS__);   \
     } while(0)
 
 /* Note: check_memleak_debug_enable is a weak function inside SDK.
@@ -90,11 +91,11 @@ bool ICACHE_FLASH_ATTR check_memleak_debug_enable(void)
 
 #ifndef MEMLEAK_DEBUG
 #define MEMLEAK_DEBUG_ENABLE    0
-#define os_free(s)        free(s)
-#define os_malloc(s)      malloc(s)
-#define os_calloc(p, s)   calloc(p, s);
-#define os_realloc(p, s)  realloc(p, s)
-#define os_zalloc(s)      zalloc(s)
+#define os_free(s)        vPortFree(s)
+#define os_malloc(s)      pvPortMalloc(s)
+#define os_calloc(p, s)   pvPortCalloc(p, s);
+#define os_realloc(p, s)  pvPortRealloc(p, s)
+#define os_zalloc(s)      pvPortZalloc(s)
 #else
 #define MEMLEAK_DEBUG_ENABLE    1
 

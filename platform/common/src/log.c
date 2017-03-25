@@ -94,11 +94,11 @@ static void task_log(void *param)
 
 		/* Get time information */
 		log_get_time(&time_info, msg.cur_time_ms);
-		/* Print time */
-		printf("    %02d:%02d:%02d.%03d", time_info.hour, time_info.minute,
-				time_info.second, time_info.millisecond);
-		/* Print message content */
-		printf("    %s\n", msg.content);
+		/* Print log */
+		printf("    %02d:%02d:%02d.%03d    %s\n",
+				time_info.hour, time_info.minute,
+				time_info.second, time_info.millisecond,
+				msg.content);
 		vPortFree(msg.content);
 	}
 }

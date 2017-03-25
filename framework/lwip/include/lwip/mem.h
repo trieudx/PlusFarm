@@ -53,22 +53,20 @@ typedef size_t mem_size_t;
 
 #ifndef MEMLEAK_DEBUG
 
-#include "esp_libc.h"
-
 #ifndef mem_free
-#define mem_free(s) free(s)
+#define mem_free(s) vPortFree(s)
 #endif
 #ifndef mem_malloc
-#define mem_malloc(s) malloc(s)
+#define mem_malloc(s) pvPortMalloc(s)
 #endif
 #ifndef mem_calloc
-#define mem_calloc(s) calloc(s)
+#define mem_calloc(s) pvPortCalloc(s)
 #endif
 #ifndef mem_realloc
-#define mem_realloc(p, s) realloc(p, s)
+#define mem_realloc(p, s) pvPortRealloc(p, s)
 #endif
 #ifndef mem_zalloc
-#define mem_zalloc(s) zalloc(s)
+#define mem_zalloc(s) pvPortZalloc(s)
 #endif
 
 #else

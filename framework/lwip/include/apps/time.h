@@ -10,6 +10,7 @@
 
 #include "c_types.h"
 #include "esp8266/eagle_soc.h"
+#include <time.h>
 
 #if !NO_SYS
 #include "lwip/sockets.h"

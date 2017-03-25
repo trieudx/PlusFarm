@@ -8,14 +8,16 @@ PROJECT_ROOT		?= ${PWD}
 OUTPUT_DIR			?= ${PROJECT_ROOT}/output
 PLATFORM_DIR		?= ${PROJECT_ROOT}/platform
 TOOL_DIR			?= ${PROJECT_ROOT}/tools
+FRAMEWORK_DIR		?= ${PROJECT_ROOT}/framework
 APP_DIR				?= ${PROJECT_ROOT}/app
 
 COMMON_DIR			?= ${PLATFORM_DIR}/common
 DRIVER_DIR			?= ${PLATFORM_DIR}/driver
 ESPRESSIF_DIR		?= ${PLATFORM_DIR}/espressif
 FREERTOS_DIR		?= ${PLATFORM_DIR}/freertos
-JSON_DIR			?= ${PLATFORM_DIR}/json
-LWIP_DIR			?= ${PLATFORM_DIR}/lwip
+JSON_DIR			?= ${FRAMEWORK_DIR}/json
+LWIP_DIR			?= ${FRAMEWORK_DIR}/lwip
+MQTT_DIR			?= ${FRAMEWORK_DIR}/mqtt
 
 LIB_DIR				?= ${ESPRESSIF_DIR}/lib
 LD_DIR				?= ${ESPRESSIF_DIR}/ld
@@ -45,11 +47,13 @@ VPATH				+= :${LWIP_DIR}/src/core
 VPATH				+= :${LWIP_DIR}/src/core/ipv4
 VPATH				+= :${LWIP_DIR}/src/core/ipv6
 VPATH				+= :${LWIP_DIR}/src/netif
+## MQTT
+VPATH				+= :${MQTT_DIR}/src
 
 ## ========================================================================== ##
 ## ------------------------------ FILES ------------------------------------- ##
 ## ========================================================================== ##
-PROJECT_NAME		= SmartFarm
+PROJECT_NAME		= PlusFarm
 ## LINKER
 LD_FILE				:= ${LD_DIR}/eagle.app.v6.ld
 ## IMAGE
@@ -134,6 +138,15 @@ OBJ_FILES			+= ${OBJ_DIR}/udp.o
 OBJ_FILES			+= ${OBJ_DIR}/etharp.o
 OBJ_FILES			+= ${OBJ_DIR}/ethernetif.o
 OBJ_FILES			+= ${OBJ_DIR}/slipif.o
+## MQTT
+OBJ_FILES			+= ${OBJ_DIR}/MQTTClient.o
+OBJ_FILES			+= ${OBJ_DIR}/MQTTConnectClient.o
+OBJ_FILES			+= ${OBJ_DIR}/MQTTDeserializePublish.o
+OBJ_FILES			+= ${OBJ_DIR}/MQTTESP8266.o
+OBJ_FILES			+= ${OBJ_DIR}/MQTTPacket.o
+OBJ_FILES			+= ${OBJ_DIR}/MQTTSerializePublish.o
+OBJ_FILES			+= ${OBJ_DIR}/MQTTSubscribeClient.o
+OBJ_FILES			+= ${OBJ_DIR}/MQTTUnsubscribeClient.o
 
 ## ========================================================================== ##
 ## ------------------------------ FLAGS ------------------------------------- ##
@@ -187,6 +200,8 @@ CFLAGS_INC			+= -I ${JSON_DIR}/include
 CFLAGS_INC			+= -I ${LWIP_DIR}/include
 CFLAGS_INC			+= -I ${LWIP_DIR}/include/ipv4
 CFLAGS_INC			+= -I ${LWIP_DIR}/include/ipv6
+## MQTT
+CFLAGS_INC			+= -I ${MQTT_DIR}/include
 
 ## ------------------------ C COMPILER OPTION ------------------------------- ##
 CFLAGS				= ${CFLAGS_CPU} ${CFLAGS_DEF} ${CFLAGS_INC}

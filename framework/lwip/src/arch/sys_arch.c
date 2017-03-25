@@ -413,9 +413,9 @@ sys_arch_unprotect(sys_prot_t pval)
 void
 sys_arch_assert(const char *file, int line)
 {
-    os_printf("\nAssertion: %d in %s\n", line, file);
-
-    while(1);
+	ETS_INTR_LOCK();
+	os_printf("\nAssertion: %d in %s\n", line, file);
+	while(1);
 }
 
 void
