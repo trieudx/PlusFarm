@@ -10,7 +10,7 @@
 
 /* Public function prototype section ======================================== */
 void SHT1X_Init(void);
-I2CM_Return SHT1X_ReadTemperature(uint16 *data);
-I2CM_Return SHT1X_ReadRelativeHumidity(uint16 *data);
+I2CM_ReturnType SHT1X_ReadTemperature(uint16_t *data);
+I2CM_ReturnType SHT1X_ReadRelativeHumidity(uint16_t *data);
 
 #endif

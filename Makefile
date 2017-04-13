@@ -1,155 +1,178 @@
 ## ========================================================================== ##
+## ----------------------------- MODULES ------------------------------------ ##
+## ========================================================================== ##
+MODULES						:= CORE
+MODULES						+= HAL
+MODULES						+= FREERTOS
+MODULES						+= DRIVER
+MODULES						+= LWIP
+MODULES						+= HTTPD
+MODULES						+= MBEDTLS
+MODULES						+= DHCPSERVER
+MODULES						+= MQTT
+MODULES						+= JSMN
+MODULES						+= APP
+
+## ========================================================================== ##
 ## --------------------------- DIRECTORIES ---------------------------------- ##
 ## ========================================================================== ##
 
 ## ------------------------------ COMMON ------------------------------------ ##
-PROJECT_ROOT		?= ${PWD}
+PROJECT_ROOT				= $(PWD)
 
-OUTPUT_DIR			?= ${PROJECT_ROOT}/output
-PLATFORM_DIR		?= ${PROJECT_ROOT}/platform
-TOOL_DIR			?= ${PROJECT_ROOT}/tools
-FRAMEWORK_DIR		?= ${PROJECT_ROOT}/framework
-APP_DIR				?= ${PROJECT_ROOT}/app
-
-COMMON_DIR			?= ${PLATFORM_DIR}/common
-DRIVER_DIR			?= ${PLATFORM_DIR}/driver
-SDK_DIR				?= ${PLATFORM_DIR}/sdk
-FREERTOS_DIR		?= ${PLATFORM_DIR}/freertos
-JSON_DIR			?= ${FRAMEWORK_DIR}/json
-LWIP_DIR			?= ${FRAMEWORK_DIR}/lwip
-MQTT_DIR			?= ${FRAMEWORK_DIR}/mqtt
-
-LIB_DIR				?= ${SDK_DIR}/lib
-LD_DIR				?= ${SDK_DIR}/ld
-
-OBJ_DIR				?= ${OUTPUT_DIR}/obj
-IMAGE_DIR			?= ${OUTPUT_DIR}/image
-BIN_DIR				?= ${OUTPUT_DIR}/bin
+BOOTLOADER_DIR				= $(PROJECT_ROOT)/bootloader
+PLATFORM_DIR				= $(PROJECT_ROOT)/platform
+	CORE_DIR				= $(PLATFORM_DIR)/core
+		SDKLIB_DIR			= $(CORE_DIR)/sdklib
+		NEWLIB_DIR			= $(CORE_DIR)/newlib
+		STARTUP_DIR			= $(CORE_DIR)/startup
+	HAL_DIR					= $(PLATFORM_DIR)/hal
+	FREERTOS_DIR			= $(PLATFORM_DIR)/freertos
+	DRIVER_DIR				= $(PLATFORM_DIR)/driver
+FRAMEWORK_DIR				= $(PROJECT_ROOT)/framework
+	LWIP_DIR				= $(FRAMEWORK_DIR)/lwip
+	HTTPD_DIR				= $(FRAMEWORK_DIR)/httpd
+	MBEDTLS_DIR				= $(FRAMEWORK_DIR)/mbedtls
+	DHCPSERVER_DIR			= $(FRAMEWORK_DIR)/dhcpserver
+	MQTT_DIR				= $(FRAMEWORK_DIR)/mqtt
+	JSMN_DIR				= $(FRAMEWORK_DIR)/jsmn
+APP_DIR						= $(PROJECT_ROOT)/app
+	FSDATA_DIR				= $(APP_DIR)/fsdata
+LD_DIR						= $(PROJECT_ROOT)/ld
+UTIL_DIR					= $(PROJECT_ROOT)/util
+BUILD_DIR					= $(PROJECT_ROOT)/build
+	OBJ_DIR					= $(BUILD_DIR)/obj
+	LIB_DIR					= $(BUILD_DIR)/lib
+	IMAGE_DIR				= $(BUILD_DIR)/image
+	BIN_DIR					= $(BUILD_DIR)/bin
 
 ## ----------------------------- SOURCE ------------------------------------- ##
-## APP
-VPATH				:= :${APP_DIR}/src
-## COMMON
-VPATH				+= :${COMMON_DIR}/src
-## DRIVER
-VPATH				+= :${DRIVER_DIR}/src
-## SDK
-VPATH				+= :${SDK_DIR}/src
+SRC_CORE					:= $(SDKLIB_DIR)/src
+SRC_CORE					+= $(NEWLIB_DIR)/src
+SRC_CORE					+= $(STARTUP_DIR)/src
+
+SRC_HAL						:= $(HAL_DIR)/src
+
+SRC_FREERTOS				:= $(FREERTOS_DIR)/src
+
+SRC_DRIVER					:= $(DRIVER_DIR)/src
+
+SRC_LWIP					:= $(LWIP_DIR)
+SRC_LWIP					+= $(LWIP_DIR)/lwip/src/api
+SRC_LWIP					+= $(LWIP_DIR)/lwip/src/core
+SRC_LWIP					+= $(LWIP_DIR)/lwip/src/core/ipv4
+SRC_LWIP					+= $(LWIP_DIR)/lwip/src/netif
+
+SRC_HTTPD					:= $(HTTPD_DIR)/src
+
+SRC_MBEDTLS					:= $(MBEDTLS_DIR)
+SRC_MBEDTLS					+= $(MBEDTLS_DIR)/mbedtls/library
+
+SRC_DHCPSERVER				:= $(DHCPSERVER_DIR)/src
+
+SRC_MQTT					:= $(MQTT_DIR)/src
+
+SRC_JSMN					:= $(JSMN_DIR)/src
+
+SRC_APP						:= $(APP_DIR)/src
+
+define CreateSrcDirList
+SRC_DIRS					+= $$(SRC_$$$(1))
+endef
+
+$(foreach userlib, $(MODULES), $(eval $(call CreateSrcDirList, \
+							$(userlib), $(shell echo $(userlib) | tr A-Z a-z))))
+
+## ---------------------------- INCLUSION ----------------------------------- ##
+## CORE
+INCLUDE_DIRS				:= $(SDKLIB_DIR)/include
+INCLUDE_DIRS				+= $(NEWLIB_DIR)/include
+INCLUDE_DIRS				+= $(STARTUP_DIR)/include
+## HAL
+INCLUDE_DIRS				+= $(HAL_DIR)/include
 ## FREERTOS
-VPATH				+= :${FREERTOS_DIR}/src
-## JSON
-VPATH				+= :${JSON_DIR}/src
+INCLUDE_DIRS				+= $(FREERTOS_DIR)/include
+## DRIVER
+INCLUDE_DIRS				+= $(DRIVER_DIR)/include
 ## LWIP
-VPATH				+= :${LWIP_DIR}/src/api
-VPATH				+= :${LWIP_DIR}/src/apps
-VPATH				+= :${LWIP_DIR}/src/arch
-VPATH				+= :${LWIP_DIR}/src/core
-VPATH				+= :${LWIP_DIR}/src/core/ipv4
-VPATH				+= :${LWIP_DIR}/src/core/ipv6
-VPATH				+= :${LWIP_DIR}/src/netif
+INCLUDE_DIRS				+= $(LWIP_DIR)/include
+INCLUDE_DIRS				+= $(LWIP_DIR)/lwip/src/include
+INCLUDE_DIRS				+= $(LWIP_DIR)/lwip/src/include/ipv4
+INCLUDE_DIRS				+= $(LWIP_DIR)/lwip/src/include/posix
+## HTTPD
+INCLUDE_DIRS				+= $(HTTPD_DIR)/include
+## MBEDTLS
+INCLUDE_DIRS				+= $(MBEDTLS_DIR)/include
+INCLUDE_DIRS				+= $(MBEDTLS_DIR)/mbedtls
+INCLUDE_DIRS				+= $(MBEDTLS_DIR)/mbedtls/include
+## DHCPSERVER
+INCLUDE_DIRS				+= $(DHCPSERVER_DIR)/include
 ## MQTT
-VPATH				+= :${MQTT_DIR}/src
+INCLUDE_DIRS				+= $(MQTT_DIR)/include
+## JSMN
+INCLUDE_DIRS				+= $(JSMN_DIR)/include
+## APP
+INCLUDE_DIRS				+= $(APP_DIR)/include
 
 ## ========================================================================== ##
 ## ------------------------------ FILES ------------------------------------- ##
 ## ========================================================================== ##
-PROJECT_NAME		= PlusFarm
-## LINKER
-LD_FILE				:= ${LD_DIR}/eagle.app.v6.ld
+
+PROJECT_NAME				= PlusFarm
+## LINKERS
+LD_ROM_FILE					:= $(LD_DIR)/rom.ld
+LD_PROGRAM_FILE				:= $(LD_DIR)/program.ld
 ## IMAGE
-IMAGE_FILE			:= ${IMAGE_DIR}/${PROJECT_NAME}.app.out
-## BINARY
-BIN_FILE			:= ${BIN_DIR}/${PROJECT_NAME}.app.bin
-## BINARY GENERATION TOOL
-GEN_TOOL_FILE		:= ${TOOL_DIR}/gen_appbin.py
+IMAGE_FILE					:= $(IMAGE_DIR)/$(PROJECT_NAME).out
+## MAP
+MAP_FILE					:= $(IMAGE_DIR)/$(PROJECT_NAME).map
+# BINARY
+BIN_FILE					:= $(BIN_DIR)/$(PROJECT_NAME).bin
+# ESPTOOL
+ESPTOOL						:= esptool.py
+# RBOOT
+RBOOT_BIN_FILE				:= $(BOOTLOADER_DIR)/build/rboot.bin
+PREBUILT_RBOOT_BIN_FILE		:= $(BOOTLOADER_DIR)/prebuild/rboot.bin
+RBOOT_CONF_FILE				:= $(BOOTLOADER_DIR)/prebuild/blank_config.bin
+ifeq (,$(wildcard $(RBOOT_BIN_FILE)))
+RBOOT_BIN_FILE				:= $(PREBUILT_RBOOT_BIN_FILE)
+endif
+# FILTEROUTPUT
+FILTEROUTPUT				:= $(UTIL_DIR)/filteroutput.py
 
 ## ----------------------------- OBJECT ------------------------------------- ##
-## APP
-OBJ_FILES			:= ${OBJ_DIR}/main.o
-OBJ_FILES			+= ${OBJ_DIR}/bh1750.o
-OBJ_FILES			+= ${OBJ_DIR}/sht1x.o
-## COMMON
-OBJ_FILES			+= ${OBJ_DIR}/assert.o
-OBJ_FILES			+= ${OBJ_DIR}/log.o
-## DRIVER
-OBJ_FILES			+= ${OBJ_DIR}/gpio.o
-OBJ_FILES			+= ${OBJ_DIR}/uart.o
-OBJ_FILES			+= ${OBJ_DIR}/i2cm.o
-## SDK
-OBJ_FILES			+= ${OBJ_DIR}/upgrade_crc32.o
-OBJ_FILES			+= ${OBJ_DIR}/upgrade_lib.o
-OBJ_FILES			+= ${OBJ_DIR}/upgrade.o
-## FREERTOS
-OBJ_FILES			+= ${OBJ_DIR}/croutine.o
-OBJ_FILES			+= ${OBJ_DIR}/heap_4.o
-OBJ_FILES			+= ${OBJ_DIR}/list.o
-OBJ_FILES			+= ${OBJ_DIR}/port.o
-OBJ_FILES			+= ${OBJ_DIR}/queue.o
-OBJ_FILES			+= ${OBJ_DIR}/tasks.o
-OBJ_FILES			+= ${OBJ_DIR}/timers.o
-## JSON
-OBJ_FILES			+= ${OBJ_DIR}/cJSON.o
-## LWIP
-OBJ_FILES			+= ${OBJ_DIR}/api_lib.o
-OBJ_FILES			+= ${OBJ_DIR}/api_msg.o
-OBJ_FILES			+= ${OBJ_DIR}/err.o
-OBJ_FILES			+= ${OBJ_DIR}/netbuf.o
-OBJ_FILES			+= ${OBJ_DIR}/netdb.o
-OBJ_FILES			+= ${OBJ_DIR}/netifapi.o
-OBJ_FILES			+= ${OBJ_DIR}/sockets.o
-OBJ_FILES			+= ${OBJ_DIR}/tcpip.o
-OBJ_FILES			+= ${OBJ_DIR}/sntp_time.o
-OBJ_FILES			+= ${OBJ_DIR}/sntp.o
-OBJ_FILES			+= ${OBJ_DIR}/time.o
-OBJ_FILES			+= ${OBJ_DIR}/sys_arch.o
-OBJ_FILES			+= ${OBJ_DIR}/autoip.o
-OBJ_FILES			+= ${OBJ_DIR}/icmp.o
-OBJ_FILES			+= ${OBJ_DIR}/igmp.o
-OBJ_FILES			+= ${OBJ_DIR}/ip_frag.o
-OBJ_FILES			+= ${OBJ_DIR}/ip4_addr.o
-OBJ_FILES			+= ${OBJ_DIR}/ip4.o
-OBJ_FILES			+= ${OBJ_DIR}/dhcp6.o
-OBJ_FILES			+= ${OBJ_DIR}/ethip6.o
-OBJ_FILES			+= ${OBJ_DIR}/icmp6.o
-OBJ_FILES			+= ${OBJ_DIR}/inet6.o
-OBJ_FILES			+= ${OBJ_DIR}/ip6_addr.o
-OBJ_FILES			+= ${OBJ_DIR}/ip6_frag.o
-OBJ_FILES			+= ${OBJ_DIR}/ip6.o
-OBJ_FILES			+= ${OBJ_DIR}/mld6.o
-OBJ_FILES			+= ${OBJ_DIR}/nd6.o
-OBJ_FILES			+= ${OBJ_DIR}/def.o
-OBJ_FILES			+= ${OBJ_DIR}/dhcp.o
-OBJ_FILES			+= ${OBJ_DIR}/dhcpserver.o
-OBJ_FILES			+= ${OBJ_DIR}/dns.o
-OBJ_FILES			+= ${OBJ_DIR}/inet_chksum.o
-OBJ_FILES			+= ${OBJ_DIR}/init.o
-OBJ_FILES			+= ${OBJ_DIR}/lwiptimers.o
-OBJ_FILES			+= ${OBJ_DIR}/mem.o
-OBJ_FILES			+= ${OBJ_DIR}/memp.o
-OBJ_FILES			+= ${OBJ_DIR}/netif.o
-OBJ_FILES			+= ${OBJ_DIR}/pbuf.o
-OBJ_FILES			+= ${OBJ_DIR}/raw.o
-OBJ_FILES			+= ${OBJ_DIR}/stats.o
-OBJ_FILES			+= ${OBJ_DIR}/sys.o
-OBJ_FILES			+= ${OBJ_DIR}/tcp_in.o
-OBJ_FILES			+= ${OBJ_DIR}/tcp_out.o
-OBJ_FILES			+= ${OBJ_DIR}/tcp.o
-OBJ_FILES			+= ${OBJ_DIR}/udp.o
-OBJ_FILES			+= ${OBJ_DIR}/etharp.o
-OBJ_FILES			+= ${OBJ_DIR}/ethernetif.o
-OBJ_FILES			+= ${OBJ_DIR}/slipif.o
-## MQTT
-OBJ_FILES			+= ${OBJ_DIR}/MQTTClient.o
-OBJ_FILES			+= ${OBJ_DIR}/MQTTConnectClient.o
-OBJ_FILES			+= ${OBJ_DIR}/MQTTDeserializePublish.o
-OBJ_FILES			+= ${OBJ_DIR}/MQTTESP8266.o
-OBJ_FILES			+= ${OBJ_DIR}/MQTTPacket.o
-OBJ_FILES			+= ${OBJ_DIR}/MQTTSerializePublish.o
-OBJ_FILES			+= ${OBJ_DIR}/MQTTSubscribeClient.o
-OBJ_FILES			+= ${OBJ_DIR}/MQTTUnsubscribeClient.o
+define CreateObjFileList
+$(1)_OBJ_FILES		:= $$(patsubst %, $$(OBJ_DIR)/%.o,						\
+						$$(basename $$(notdir $$(filter %.c %.S,			\
+							$$(wildcard $$(addsuffix /*, $$(SRC_$$$(1))))))))
+endef
+
+$(foreach objmodule, $(MODULES),											\
+							$(eval $(call CreateObjFileList, $(objmodule))))
+
+## ------------------------------- LIB -------------------------------------- ##
+define CreateUserLibFileList
+$(1)_LIB_FILE				:= $$(LIB_DIR)/userlib_$$$(2).a
+USERLIB_FILES				+= $$($$$(1)_LIB_FILE)
+endef
+
+$(foreach userlib, $(MODULES), $(eval $(call CreateUserLibFileList, \
+							$(userlib), $(shell echo $(userlib) | tr A-Z a-z))))
+
+SDKLIB_FILES				:= $(LIB_DIR)/sdklib_main.a
+SDKLIB_FILES				+= $(LIB_DIR)/sdklib_net80211.a
+SDKLIB_FILES				+= $(LIB_DIR)/sdklib_phy.a
+SDKLIB_FILES				+= $(LIB_DIR)/sdklib_pp.a
+SDKLIB_FILES				+= $(LIB_DIR)/sdklib_wpa.a
+
+NEWLIB_FILE					:= $(NEWLIB_DIR)/lib/libc.a
+
+LIB_FILES					:= $(USERLIB_FILES)
+LIB_FILES					+= $(SDKLIB_FILES)
+LIB_FILES					+= $(NEWLIB_FILE)
 
 ## ========================================================================== ##
-## ------------------------------ FLAGS ------------------------------------- ##
+## --------------------------- COMPILATION ---------------------------------- ##
 ## ========================================================================== ##
 
 ## ---------------------------- COMPILER ------------------------------------ ##
@@ -159,140 +182,148 @@ NM					= xtensa-lx106-elf-nm
 OBJCOPY				= xtensa-lx106-elf-objcopy
 SIZE				= xtensa-lx106-elf-size
 
-## ------------------------------- CPU -------------------------------------- ##
-CFLAGS_CPU			:= -O3 -g3
-CFLAGS_CPU			+= -MD -MP
-CFLAGS_CPU			+= -Wpointer-arith
-CFLAGS_CPU			+= -Wundef
-CFLAGS_CPU			+= -Werror
-CFLAGS_CPU			+= -Wl,-EL
-CFLAGS_CPU			+= -fno-inline-functions
-CFLAGS_CPU			+= -nostdlib
-CFLAGS_CPU			+= -mlongcalls
-CFLAGS_CPU			+= -mtext-section-literals
-CFLAGS_CPU			+= -ffunction-sections
-CFLAGS_CPU			+= -fdata-sections
-CFLAGS_CPU			+= -fno-builtin-printf
-CFLAGS_CPU			+= -fno-aggressive-loop-optimizations
-#CFLAGS_CPU			+= -Wall
+## -------------------------- COMPILE FLAGS --------------------------------- ##
+## OPTION
+CFLAGS_OPT			:= -O2 -g -std=gnu99 -MD -MP
+CFLAGS_OPT			+= -ffunction-sections -fdata-sections
+CFLAGS_OPT			+= -nostdlib -Wl,-EL -Wall -Wno-address
+CFLAGS_OPT			+= -mlongcalls
+CFLAGS_OPT			+= -mtext-section-literals
+FLAGS_OPT			+= -Wpointer-arith -Werror
+CFLAGS_OPT			+= -fno-aggressive-loop-optimizations
+## MACRO
+CFLAGS_DEF			:= -DGITSHORTREV=\"31ef50c\"
+CFLAGS_DEF			+= -DLWIP_HTTPD_CGI=1 -DLWIP_HTTPD_SSI=1
+CFLAGS_DEF			+= -DLOG_VERBOSE
+#-DUSE_FULL_ASSERT
 
-## ------------------------------ MACRO ------------------------------------- ##
-CFLAGS_DEF			:= -D ICACHE_FLASH -D LOG_VERBOSE -D USE_FULL_ASSERT
-CFLAGS_DEF			+= -D LWIP_OPEN_SRC -D PBUF_RSV_FOR_WLAN -D EBUF_LWIP
-#CFLAGS_DEF			+= -D MEMLEAK_DEBUG
+CFLAGS				:= $(CFLAGS_OPT) $(CFLAGS_DEF)
+CFLAGS				+= $(addprefix -I, $(INCLUDE_DIRS))
 
-## ---------------------------- INCLUSION ----------------------------------- ##
-## APP
-CFLAGS_INC			:= -I ${APP_DIR}/include
-## COMMON
-CFLAGS_INC			+= -I ${COMMON_DIR}/include
-## DRIVER
-CFLAGS_INC			+= -I ${DRIVER_DIR}/include
-## SDK
-CFLAGS_INC			+= -I ${SDK_DIR}/include
-CFLAGS_INC			+= -I ${SDK_DIR}/include/esp8266
-CFLAGS_INC			+= -I ${SDK_DIR}/include/xtensa
-## FREERTOS
-CFLAGS_INC			+= -I ${FREERTOS_DIR}/include
-## JSON
-CFLAGS_INC			+= -I ${JSON_DIR}/include
-## LWIP
-CFLAGS_INC			+= -I ${LWIP_DIR}/include
-CFLAGS_INC			+= -I ${LWIP_DIR}/include/ipv4
-CFLAGS_INC			+= -I ${LWIP_DIR}/include/ipv6
-## MQTT
-CFLAGS_INC			+= -I ${MQTT_DIR}/include
+VPATH				:= $(SRC_DIRS)
 
-## ------------------------ C COMPILER OPTION ------------------------------- ##
-CFLAGS				= ${CFLAGS_CPU} ${CFLAGS_DEF} ${CFLAGS_INC}
+## -------------------------- LINKER FLAGS ---------------------------------- ##
+LFLAGS				:= -T $(LD_ROM_FILE) -T $(LD_PROGRAM_FILE)
+LFLAGS				+= -Wl,-Map=$(MAP_FILE)
+LFLAGS				+= -O2 -g -nostdlib
+LFLAGS				+= -Wl,--gc-sections
+LFLAGS				+= -Wl,--no-check-sections
+LFLAGS				+= -u call_user_start -u _printf_float -u _scanf_float
+LFLAGS				+= -Wl,-static
+LFLAGS				+= -Wl,--whole-archive
+LFLAGS				+= $(CORE_LIB_FILE) $(HAL_LIB_FILE)
+LFLAGS				+= -Wl,--no-whole-archive
+LFLAGS				+= -Wl,--start-group
+LFLAGS				+= $(FREERTOS_LIB_FILE) $(DRIVER_LIB_FILE) $(LWIP_LIB_FILE)
+LFLAGS				+= $(HTTPD_LIB_FILE) $(MBEDTLS_LIB_FILE)
+LFLAGS				+= $(DHCPSERVER_LIB_FILE) $(MQTT_LIB_FILE) $(JSMN_LIB_FILE)
+LFLAGS				+= $(SDKLIB_FILES) $(NEWLIB_FILE) $(APP_LIB_FILE)
+LFLAGS				+= -lgcc -lhal
+LFLAGS				+= -Wl,--end-group
 
-## ----------------------------- LINKER ------------------------------------- ##
-LD_FLAGS			:= -L${LIB_DIR}
-LD_FLAGS			+= -Wl,--gc-sections
-LD_FLAGS			+= -nostdlib
-LD_FLAGS			+= -T${LD_FILE}
-LD_FLAGS			+= -Wl,--no-check-sections
-LD_FLAGS			+= -u call_user_start
-LD_FLAGS			+= -Wl,-static
-LD_FLAGS			+= -Wl,--start-group
-LD_FLAGS			+= -lcirom
-LD_FLAGS			+= -lmirom
-LD_FLAGS			+= -lgcc
-LD_FLAGS			+= -lhal
-LD_FLAGS			+= -lphy
-LD_FLAGS			+= -lpp
-LD_FLAGS			+= -lnet80211
-LD_FLAGS			+= -lcrypto
-LD_FLAGS			+= -lwpa
-LD_FLAGS			+= -lmain
-LD_FLAGS			+= ${OBJ_FILES}
-LD_FLAGS			+= -Wl,--end-group
+## --------------------------- DEBUG FLAGS ---------------------------------- ##
+VERBOSE				?= 0
+
+ifeq ("$(VERBOSE)","1")
+Q :=
+vecho := @true
+else
+Q := @
+vecho := @echo
+endif
 
 ## ========================================================================== ##
 ## ----------------------------- TARGETS ------------------------------------ ##
 ## ========================================================================== ##
-FREQ_DIV			= 0
-BAUD_RATE			= 460800
-# SPI_MODE:
-#  0 = QIO
-#  1 = QOUT
-#  2 = DIO
-#  3 = DOUT
-SPI_MODE			= 0
-# SIZE_MAP:
-#  0 = 512KB  (256KB  + 256KB)
-#  2 = 1024KB (512KB  + 512KB)
-#  3 = 2048KB (512KB  + 512KB)
-#  4 = 4096KB (512KB  + 512KB)
-#  5 = 2048KB (1024KB + 1024KB)
-#  6 = 4096KB (1024KB + 1024KB)
-SIZE_MAP			= 4
+DEVICE_PORT			= /dev/ttyUSB0
+FLASH_BAUD_RATE		= 460800
+DEBUG_BAUD_RATE		= 460800
+ESPTOOL_PARAMS		= --flash_size 32m --flash_mode qio --flash_freq 80m
+
+# Default target
+default-tgt: all
+
+$(OBJ_DIR) $(LIB_DIR) $(IMAGE_DIR) $(BIN_DIR):
+	$(Q) mkdir -p $@
+
+$(OBJ_DIR)/%.o: %.S | $(OBJ_DIR)
+	$(vecho) "  AS   $<"
+	$(Q) $(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
+	$(vecho) "  CC   $<"
+	$(Q) $(CC) $(CFLAGS) -c $< -o $@
+
+define MakeUserLibrary
+$$(LIB_DIR)/userlib_$$$(1).a: $$($$$(2)_OBJ_FILES) | $$(LIB_DIR)
+	$$(vecho) "  AR   $$@"
+	$$(Q) $$(AR) cru $$@ $$^
+	@echo ""
+endef
+
+$(foreach userlib, $(MODULES), $(eval $(call MakeUserLibrary, \
+							$(shell echo $(userlib) | tr A-Z a-z), $(userlib))))
+
+## Linking rules for SDK libraries
+## SDK libraries are preprocessed to:
+# - Remove object files named in <libname>.remove
+# - Prefix all defined symbols with 'sdk_'
+# - Weaken all global symbols so they can be overriden from the open SDK side
+#
+# Hacky, but prevents confusing error messages if one of these files disappears
+$(SDKLIB_DIR)/process/lib%.remove:
+	$(Q) touch $@
+
+# Remove comment lines from <libname>.remove files
+$(LIB_DIR)/lib%.remove: $(SDKLIB_DIR)/process/lib%.remove | $(LIB_DIR)
+	$(Q) grep -v "^#" $< | cat > $@
+
+# Stage 1: remove unwanted object files listed in <libname>.remove
+# longside each library
+$(LIB_DIR)/sdklib_%_stage1.a: $(SDKLIB_DIR)/lib/lib%.a \
+										$(LIB_DIR)/lib%.remove | $(LIB_DIR)
+	@echo "SDK processing stage 1: Removing unwanted objects from $<"
+	$(Q) cat $< > $@
+	$(Q) $(AR) d $@ @$(word 2,$^)
+
+# Stage 2: Redefine all SDK symbols as sdk_, weaken all symbols.
+$(LIB_DIR)/sdklib_%.a: $(LIB_DIR)/sdklib_%_stage1.a \
+										$(SDKLIB_DIR)/process/allsymbols.rename
+	@echo "SDK processing stage 2: Renaming symbols in SDK library $< -> $@"
+	$(Q) $(OBJCOPY) --redefine-syms $(word 2,$^) --weaken $< $@
+
+$(IMAGE_FILE): $(LIB_FILES) | $(IMAGE_DIR)
+	@echo ""
+	$(vecho) "  LD   $@"
+	$(Q) $(CC) $(LFLAGS) -o $@
+	$(Q) $(SIZE) $@
+
+$(BIN_FILE): $(IMAGE_FILE) | $(BIN_DIR)
+	$(Q) $(ESPTOOL) elf2image --version=2 $(ESPTOOL_PARAMS) $< -o $@
+
+all: $(BIN_FILE)
+	@echo ""
+
+hehe:
+	@echo "$(USERLIB_FILES)"
+
+clean:
+	$(Q) $(RM) -r $(BUILD_DIR)
+
+flash:
+	$(Q) $(ESPTOOL) --port $(DEVICE_PORT) --baud $(FLASH_BAUD_RATE) erase_flash
+	$(Q) $(ESPTOOL) --port $(DEVICE_PORT) --baud $(FLASH_BAUD_RATE) \
+		write_flash $(ESPTOOL_PARAMS) \
+		0x0000 $(RBOOT_BIN_FILE) 0x1000 $(RBOOT_CONF_FILE) 0x2000 $(BIN_FILE)
+
+debug:
+	$(Q) $(FILTEROUTPUT) --port $(DEVICE_PORT) --baud $(DEBUG_BAUD_RATE)
 
 .PHONY:
 
-all: ${OBJ_FILES} ${IMAGE_FILE} ${BIN_FILE}
-
-${OBJ_DIR}/%.o: %.c
-	@mkdir -p ${OBJ_DIR}
-	@echo "  CC   ${<}"
-	@${CC} ${CFLAGS} -o ${@} -c ${<}
-
-${IMAGE_FILE}: ${OBJ_FILES}
-	@mkdir -p ${IMAGE_DIR}
-	@echo "  LD   ${@}"
-	@${CC} ${LD_FLAGS} -o ${@}
-	@${SIZE} ${@} 
-
-${BIN_FILE}: ${IMAGE_FILE}
-	@mkdir -p ${BIN_DIR}
-
-	@${OBJCOPY} --only-section .text -O binary ${<} eagle.app.v6.text.bin
-	@${OBJCOPY} --only-section .data -O binary ${<} eagle.app.v6.data.bin
-	@${OBJCOPY} --only-section .rodata -O binary ${<} eagle.app.v6.rodata.bin
-	@${OBJCOPY} --only-section .irom0.text -O binary ${<} eagle.app.v6.irom0text.bin
-
-	@python ${GEN_TOOL_FILE} ${<} 0 ${SPI_MODE} ${FREQ_DIV} ${SIZE_MAP}
-	@mv eagle.app.flash.bin ${BIN_DIR}/${PROJECT_NAME}.flash.bin
-	@mv eagle.app.v6.irom0text.bin ${BIN_DIR}/${PROJECT_NAME}.irom0text.bin
-	@rm eagle.app*
-	@echo ""
-
-clean:
-	@${RM} -r ${OBJ_DIR}
-	@${RM} -r ${IMAGE_DIR}
-	@${RM} ${BIN_DIR}/${PROJECT_NAME}*
-
-flash:
-	@esptool.py --port /dev/ttyUSB0 --baud ${BAUD_RATE} erase_flash
-	@esptool.py --port /dev/ttyUSB0 --baud ${BAUD_RATE} write_flash \
-	--flash_mode qio --flash_freq 80m --flash_size 32m \
-	0x00000 ${BIN_DIR}/${PROJECT_NAME}.flash.bin \
-	0x10000 ${BIN_DIR}/${PROJECT_NAME}.irom0text.bin \
-	0x3FC000 ${BIN_DIR}/esp_init_data_default.bin
-
-debug:
-	@sudo minicom --device /dev/ttyUSB0 --baudrate ${BAUD_RATE}
+# Prevent "intermediate" files from being deleted
+.SECONDARY:
 
 # Include the automatically generated dependency files.
-sinclude ${wildcard ${OBJ_DIR}/*.d}
+sinclude $(wildcard $(OBJ_DIR)/*.d)
 

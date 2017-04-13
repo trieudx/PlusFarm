@@ -1,8 +1,8 @@
 /* Inclusion section ======================================================== */
-#include "esp_common.h"
+#include "sdk/esp_common.h"
 #include "onewire.h"
-#include "gpio.h"
-#include "FreeRTOS.h"
+#include "hal_gpio.h"
+#include "freertos.h"
 
 /* Private macro definition section ========================================= */
 
@@ -11,65 +11,65 @@
 /* Private function prototype section ======================================= */
 
 /* Private variable section ================================================= */
-static GPIO_Pin			onewire_hw_pin;
+static HAL_GPIO_PinType onewire_hw_pin;
 
 /* Public function definition section ======================================= */
-void OneWire_Init(OneWire_Config *config)
+void OneWire_Init(OneWire_ConfigType *config)
 {
-	GPIO_Config gpio;
+  HAL_GPIO_ConfigType gpio;
 
-	/* Initialize HW pin */
-	gpio.pin = config->hw_pin;
-	gpio.mode = GPIO_MODE_OUT_OD;
-	gpio.pull = GPIO_PULL_UP;
-	GPIO_Init(&gpio);
+  /* Initialize HW pin */
+  gpio.pin = config->hw_pin;
+  gpio.mode = HAL_GPIO_MODE_OUT_OD;
+  gpio.pull = HAL_GPIO_PULL_UP;
+  gpio.sleepable = false;
+  HAL_GPIO_Init(&gpio);
 
-	/* Store HW configuration */
-	onewire_hw_pin = config->hw_pin;
+  /* Store HW configuration */
+  onewire_hw_pin = config->hw_pin;
 }
-
 
 /* Private function definition section ====================================== */
-static OneWire_Return onewire_reset(void)
+OneWire_Return onewire_reset(void)
 {
-	bool devices_present;
+  bool devices_present;
 
-	GPIO_SetLow(onewire_hw_pin);
-	os_delay_us(480);
-	GPIO_SetHigh(onewire_hw_pin);
-	os_delay_us(70);
-	devices_present = !GPIO_Read(onewire_hw_pin);
-	os_delay_us(410);
+  HAL_GPIO_SetLow(onewire_hw_pin);
+  sdk_os_delay_us(480);
+  HAL_GPIO_SetHigh(onewire_hw_pin);
+  sdk_os_delay_us(70);
+  devices_present = !HAL_GPIO_Read(onewire_hw_pin);
+  sdk_os_delay_us(410);
 
-	return devices_present ? ONEWIRE_OK : ONEWIRE_ERROR;
+  return devices_present ? ONEWIRE_OK : ONEWIRE_ERROR;
 }
 
-static void onewire_set(bool level)
+void onewire_set(bool level)
 {
-	GPIO_SetLow(onewire_hw_pin);
-	if (level == 1)
-		os_delay_us(6);
-	else
-		os_delay_us(60);
-	GPIO_SetHigh(onewire_hw_pin);
-	if (level == 1)
-		os_delay_us(64);
-	else
-		os_delay_us(10);
+  HAL_GPIO_SetLow(onewire_hw_pin);
+  if (level == 1)
+    sdk_os_delay_us(6);
+  else
+    sdk_os_delay_us(60);
+  HAL_GPIO_SetHigh(onewire_hw_pin);
+  if (level == 1)
+    sdk_os_delay_us(64);
+  else
+    sdk_os_delay_us(10);
 }
 
-static bool onewire_read(void)
+bool onewire_read(void)
 {
-	bool level;
+  bool level;
 
-	GPIO_SetLow(onewire_hw_pin);
-	os_delay_us(6);
-	GPIO_SetHigh(onewire_hw_pin);
-	os_delay_us(9);
-	level = GPIO_Read(onewire_hw_pin);
-	os_delay_us(55);
+  HAL_GPIO_SetLow(onewire_hw_pin);
+  sdk_os_delay_us(6);
+  HAL_GPIO_SetHigh(onewire_hw_pin);
+  sdk_os_delay_us(9);
+  level = HAL_GPIO_Read(onewire_hw_pin);
+  sdk_os_delay_us(55);
 
-	return level;
+  return level;
 }
 
 /* ============================= End of file ================================ */
