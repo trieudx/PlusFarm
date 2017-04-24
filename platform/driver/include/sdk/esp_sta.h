@@ -8,7 +8,7 @@
 #ifndef __ESP_STA_H__
 #define __ESP_STA_H__
 
-#include "queue.h"
+#include "sys_queue.h"
 
 #ifdef	__cplusplus
 extern "C"

@@ -3,6 +3,7 @@
 #include "freertos_task.h"
 #include "log.h"
 #include "hal_gpio.h"
+#include "hal_uart.h"
 #include "bh1750.h"
 #include "sht1x.h"
 #include "freertos_semphr.h"
@@ -10,6 +11,23 @@
 #include "mqtt_client.h"
 #include "app_config.h"
 #include "string.h"
+#include "hal_wdev_regs.h"
+#include "sdk/phy_info.h"
+#include "libmain.h"
+#include "libnet80211.h"
+#include "libphy.h"
+#include "libpp.h"
+#include "sysparam.h"
+#include "hal_rng.h"
+#include <lwip/lwip_tcpip.h>
+#include "rom.h"
+#include "hal_dport_regs.h"
+#include "hal_wdt_regs.h"
+#include "hal_rtcmem_regs.h"
+#include "app_config.h"
+#include "httpd.h"
+#include "dhcpserver.h"
+#include "fota.h"
 
 #define PUB_MSG_LEN 16
 
@@ -74,6 +92,191 @@ void task_sht1x(void *param)
   }
 }
 
+#define LED_PIN 2
+
+enum
+{
+  SSI_UPTIME,
+  SSI_FREE_HEAP,
+  SSI_LED_STATE
+};
+
+int32_t ssi_handler(int32_t iIndex, char *pcInsert, int32_t iInsertLen)
+{
+  switch (iIndex)
+  {
+    case SSI_UPTIME:
+      snprintf(pcInsert, iInsertLen, "%d",
+               xTaskGetTickCount() * portTICK_PERIOD_MS / 1000);
+      break;
+    case SSI_FREE_HEAP:
+      snprintf(pcInsert, iInsertLen, "%d", (int)xPortGetFreeHeapSize());
+      break;
+    case SSI_LED_STATE:
+      snprintf(pcInsert, iInsertLen, HAL_GPIO_Read(LED_PIN) ? "Off" : "On");
+      break;
+    default:
+      snprintf(pcInsert, iInsertLen, "N/A");
+      break;
+  }
+
+  /* Tell the server how many characters to insert */
+  return (strlen(pcInsert));
+}
+
+char *gpio_cgi_handler(int iIndex, int iNumParams, char *pcParam[],
+                       char *pcValue[])
+{
+  HAL_GPIO_ConfigType gpio_config =
+  {
+    .mode = HAL_GPIO_MODE_OUT_PP,
+    .pull = HAL_GPIO_NO_PULL,
+    .sleepable = false
+  };
+
+  for (int i = 0; i < iNumParams; i++)
+  {
+    gpio_config.pin = atoi(pcValue[i]);
+    HAL_GPIO_Init(&gpio_config);
+
+    if (strcmp(pcParam[i], "on") == 0)
+    {
+      HAL_GPIO_SetHigh(gpio_config.pin);
+    }
+    else if (strcmp(pcParam[i], "off") == 0)
+    {
+      HAL_GPIO_SetLow(gpio_config.pin);
+    }
+    else if (strcmp(pcParam[i], "toggle") == 0)
+    {
+      HAL_GPIO_Toggle(gpio_config.pin);
+    }
+  }
+  return "/index.ssi";
+}
+
+char *about_cgi_handler(int iIndex, int iNumParams, char *pcParam[],
+                        char *pcValue[])
+{
+  return "/about.html";
+}
+
+char *websocket_cgi_handler(int iIndex, int iNumParams, char *pcParam[],
+                            char *pcValue[])
+{
+  return "/websockets.html";
+}
+
+void websocket_task(void *pvParameter)
+{
+  struct tcp_pcb *pcb = (struct tcp_pcb *)pvParameter;
+
+  for (;;)
+  {
+    if (pcb == NULL || pcb->state != ESTABLISHED)
+    {
+      printf("Connection closed, deleting task\n");
+      break;
+    }
+
+    int uptime = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000;
+    int heap = (int)xPortGetFreeHeapSize();
+    int led = !HAL_GPIO_Read(LED_PIN);
+
+    /* Generate response in JSON format */
+    char response[64];
+    int len = snprintf(response, sizeof(response), "{\"uptime\" : \"%d\","
+                       " \"heap\" : \"%d\","
+                       " \"led\" : \"%d\"}",
+                       uptime, heap, led);
+    if (len < sizeof(response))
+      websocket_write(pcb, (unsigned char *)response, len, WS_TEXT_MODE);
+
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+  }
+
+  vTaskDelete(NULL);
+}
+
+/**
+ * This function is called when websocket frame is received.
+ *
+ * Note: this function is executed on TCP thread and should return as soon
+ * as possible.
+ */
+void websocket_cb(struct tcp_pcb *pcb, uint8_t *data, u16_t data_len,
+                  uint8_t mode)
+{
+  printf("[websocket_callback]:\n%.*s\n", (int)data_len, (char*)data);
+
+  uint8_t response[2];
+  uint16_t val;
+
+  switch (data[0])
+  {
+    case 'A': // ADC
+      /* This should be done on a separate thread in 'real' applications */
+      val = sdk_system_adc_read();
+      break;
+    case 'D': // Disable LED
+      HAL_GPIO_SetHigh(LED_PIN);
+      val = 0xDEAD;
+      break;
+    case 'E': // Enable LED
+      HAL_GPIO_SetLow(LED_PIN);
+      val = 0xBEEF;
+      break;
+    default:
+      printf("Unknown command\n");
+      val = 0;
+      break;
+  }
+
+  response[1] = (uint8_t)val;
+  response[0] = val >> 8;
+
+  websocket_write(pcb, response, 2, WS_BIN_MODE);
+}
+
+/**
+ * This function is called when new websocket is open and
+ * creates a new websocket_task if requested URI equals '/stream'.
+ */
+void websocket_open_cb(struct tcp_pcb *pcb, const char *uri)
+{
+  printf("WS URI: %s\n", uri);
+  if (!strcmp(uri, "/stream"))
+  {
+    printf("request for streaming\n");
+    xTaskCreate(&websocket_task, "websocket_task", 256, (void *)pcb, 2, NULL);
+  }
+}
+
+void task_http(void *pvParameters)
+{
+  tCGI pCGIs[] = { { "/gpio", (tCGIHandler)gpio_cgi_handler }, {
+      "/about", (tCGIHandler)about_cgi_handler },
+                   { "/websockets", (tCGIHandler)websocket_cgi_handler }, };
+
+  const char *pcConfigSSITags[] = { "uptime", // SSI_UPTIME
+      "heap",   // SSI_FREE_HEAP
+      "led"     // SSI_LED_STATE
+      };
+
+  /* register handlers and start the server */
+  http_set_cgi_handlers(pCGIs, sizeof(pCGIs) / sizeof(pCGIs[0]));
+  http_set_ssi_handler((tSSIHandler)ssi_handler, pcConfigSSITags,
+                       sizeof(pcConfigSSITags) / sizeof(pcConfigSSITags[0]));
+  websocket_register_callbacks((tWsOpenHandler)websocket_open_cb,
+                               (tWsHandler)websocket_cb);
+  httpd_init();
+
+  while (1)
+  {
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
+
 const char *mqtt_get_id(void)
 {
   /* Use MAC address for Station as unique ID */
@@ -85,7 +288,7 @@ const char *mqtt_get_id(void)
   if (my_id_done)
     return my_id;
 
-  if (!sdk_wifi_get_macaddr(STATION_IF, my_id))
+  if (!sdk_wifi_get_macaddr(STATION_IF, (void *)my_id))
     return NULL;
 
   for (i = 5; i >= 0; i--)
@@ -142,7 +345,6 @@ void topic_received(mqtt_message_data_t* md)
 
 void task_mqtt(void *param)
 {
-  struct sdk_station_config wifi_config;
   mqtt_network_t network;
   mqtt_client_t client = mqtt_client_default;
   mqtt_packet_connect_data_t data = mqtt_packet_connect_data_initializer;
@@ -152,11 +354,6 @@ void task_mqtt(void *param)
   int ret;
   uint8_t wifi_status;
   uint8_t timeout;
-
-  /* Configure WiFi */
-  strcpy(wifi_config.ssid, STA_SSID);
-  strcpy(wifi_config.password, STA_PASS);
-  sdk_wifi_station_set_config(&wifi_config);
 
   mqtt_network_new(&network);
 
@@ -168,11 +365,11 @@ void task_mqtt(void *param)
   {
     if (sdk_wifi_station_get_connect_status() != STATION_GOT_IP)
     {
-      LOG_PRINTF("WiFi: (Re)connecting to %s", wifi_config.ssid);
+      LOG_PRINTF("WiFi: (Re)connecting to %s", STA_SSID);
       sdk_wifi_station_connect();
       wifi_status = sdk_wifi_station_get_connect_status();
       for (timeout = 30; (wifi_status != STATION_GOT_IP) && (timeout > 0);
-          timeout--)
+           timeout--)
       {
         wifi_status = sdk_wifi_station_get_connect_status();
         if (wifi_status == STATION_WRONG_PASSWORD)
@@ -211,7 +408,7 @@ void task_mqtt(void *param)
 
           /* Create new MQTT client */
           mqtt_client_new(&client, &network, 5000, mqtt_buf, 100, mqtt_readbuf,
-                        100);
+                          100);
           data.willFlag = 0;
           data.MQTTVersion = 3;
           data.clientID.cstring = mqtt_client_id;
@@ -289,259 +486,18 @@ void task_mqtt(void *param)
   }
 }
 
-void mqtt_init(void)
-{
-  publish_queue = xQueueCreate(3, PUB_MSG_LEN);
-
-  if (sdk_wifi_get_opmode() != STATION_MODE)
-  {
-    LOG_PRINTF("Setting wifi station mode");
-    sdk_wifi_set_opmode(STATION_MODE);
-    LOG_PRINTF("Restarting system");
-    sdk_system_restart();
-  }
-
-  xTaskCreate(task_mqtt, "task_mqtt", 1152, NULL, tskIDLE_PRIORITY + 2, NULL);
-  xTaskCreate(task_beat, "task_beat", 512, NULL, tskIDLE_PRIORITY + 3, NULL);
-}
-
-/******************************************************************************
- * FunctionName : user_init
- * Description  : entry of user application, init user function here
- * Parameters   : none
- * Returns      : none
- *******************************************************************************/
 void user_init(void)
 {
   /* Initialize log */
   Log_Init();
 
-  /* Initialize MQTT */
-  mqtt_init();
+  LOG_PRINTF("Setting wifi Station + AP mode");
+  struct sdk_station_config sta_config =
+  {
+    .ssid = STA_SSID,
+    .password = STA_PASS
+  };
 
-  /* Test GPIO */
-  xTaskCreate(task_gpio, "task_gpio", 256, NULL, 5, NULL);
-  /* Test BH1750 */
-  xTaskCreate(task_bh1750, "task_bh1750", 256, NULL, 5, NULL);
-  /* Test SHT1X */
-  xTaskCreate(task_sht1x, "task_sht1x", 256, NULL, 5, NULL);
-}
-
-///*
-// * HTTP server example.
-// *
-// * This sample code is in the public domain.
-// */
-//#include <sdk/esp_common.h>
-//#include <esp8266.h>
-//#include <hal_uart.h>
-//#include <string.h>
-//#include <stdio.h>
-//#include <freertos.h>
-//#include <freertos_task.h>
-//#include <app_config.h>
-//#include <httpd.h>
-//#include <dhcpserver.h>
-//
-//#define LED_PIN 2
-//
-//enum
-//{
-//  SSI_UPTIME,
-//  SSI_FREE_HEAP,
-//  SSI_LED_STATE
-//};
-//
-//int32_t ssi_handler(int32_t iIndex, char *pcInsert, int32_t iInsertLen)
-//{
-//  switch (iIndex)
-//  {
-//    case SSI_UPTIME:
-//      snprintf(pcInsert, iInsertLen, "%d",
-//               xTaskGetTickCount() * portTICK_PERIOD_MS / 1000);
-//      break;
-//    case SSI_FREE_HEAP:
-//      snprintf(pcInsert, iInsertLen, "%d", (int)xPortGetFreeHeapSize());
-//      break;
-//    case SSI_LED_STATE:
-//      snprintf(pcInsert, iInsertLen, (GPIO.OUT & BIT(LED_PIN)) ? "Off" : "On");
-//      break;
-//    default:
-//      snprintf(pcInsert, iInsertLen, "N/A");
-//      break;
-//  }
-//
-//  /* Tell the server how many characters to insert */
-//  return (strlen(pcInsert));
-//}
-//
-//char *gpio_cgi_handler(int iIndex, int iNumParams, char *pcParam[],
-//                       char *pcValue[])
-//{
-//  HAL_GPIO_ConfigType gpio_config =
-//  {
-//    .mode = HAL_GPIO_MODE_OUT_PP,
-//    .pull = HAL_GPIO_NO_PULL,
-//    .sleepable = false
-//  };
-//
-//  for (int i = 0; i < iNumParams; i++)
-//  {
-//    gpio_config.pin = atoi(pcValue[i]);
-//    HAL_GPIO_Init(&gpio_config);
-//
-//    if (strcmp(pcParam[i], "on") == 0)
-//    {
-//      HAL_GPIO_SetHigh(gpio_config.pin);
-//    }
-//    else if (strcmp(pcParam[i], "off") == 0)
-//    {
-//      HAL_GPIO_SetLow(gpio_config.pin);
-//    }
-//    else if (strcmp(pcParam[i], "toggle") == 0)
-//    {
-//      HAL_GPIO_Toggle(gpio_config.pin);
-//    }
-//  }
-//  return "/index.ssi";
-//}
-//
-//char *about_cgi_handler(int iIndex, int iNumParams, char *pcParam[],
-//                        char *pcValue[])
-//{
-//  return "/about.html";
-//}
-//
-//char *websocket_cgi_handler(int iIndex, int iNumParams, char *pcParam[],
-//                            char *pcValue[])
-//{
-//  return "/websockets.html";
-//}
-//
-//void websocket_task(void *pvParameter)
-//{
-//  struct tcp_pcb *pcb = (struct tcp_pcb *)pvParameter;
-//
-//  for (;;)
-//  {
-//    if (pcb == NULL || pcb->state != ESTABLISHED)
-//    {
-//      printf("Connection closed, deleting task\n");
-//      break;
-//    }
-//
-//    int uptime = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000;
-//    int heap = (int)xPortGetFreeHeapSize();
-//    int led = !HAL_GPIO_Read(LED_PIN);
-//
-//    /* Generate response in JSON format */
-//    char response[64];
-//    int len = snprintf(response, sizeof(response), "{\"uptime\" : \"%d\","
-//                       " \"heap\" : \"%d\","
-//                       " \"led\" : \"%d\"}",
-//                       uptime, heap, led);
-//    if (len < sizeof(response))
-//      websocket_write(pcb, (unsigned char *)response, len, WS_TEXT_MODE);
-//
-//    vTaskDelay(2000 / portTICK_PERIOD_MS);
-//  }
-//
-//  vTaskDelete(NULL);
-//}
-//
-///**
-// * This function is called when websocket frame is received.
-// *
-// * Note: this function is executed on TCP thread and should return as soon
-// * as possible.
-// */
-//void websocket_cb(struct tcp_pcb *pcb, uint8_t *data, u16_t data_len,
-//                  uint8_t mode)
-//{
-//  printf("[websocket_callback]:\n%.*s\n", (int)data_len, (char*)data);
-//
-//  uint8_t response[2];
-//  uint16_t val;
-//
-//  switch (data[0])
-//  {
-//    case 'A': // ADC
-//      /* This should be done on a separate thread in 'real' applications */
-//      val = sdk_system_adc_read();
-//      break;
-//    case 'D': // Disable LED
-//      HAL_GPIO_SetHigh(LED_PIN);
-//      val = 0xDEAD;
-//      break;
-//    case 'E': // Enable LED
-//      HAL_GPIO_SetLow(LED_PIN);
-//      val = 0xBEEF;
-//      break;
-//    default:
-//      printf("Unknown command\n");
-//      val = 0;
-//      break;
-//  }
-//
-//  response[1] = (uint8_t)val;
-//  response[0] = val >> 8;
-//
-//  websocket_write(pcb, response, 2, WS_BIN_MODE);
-//}
-//
-///**
-// * This function is called when new websocket is open and
-// * creates a new websocket_task if requested URI equals '/stream'.
-// */
-//void websocket_open_cb(struct tcp_pcb *pcb, const char *uri)
-//{
-//  printf("WS URI: %s\n", uri);
-//  if (!strcmp(uri, "/stream"))
-//  {
-//    printf("request for streaming\n");
-//    xTaskCreate(&websocket_task, "websocket_task", 256, (void *)pcb, 2, NULL);
-//  }
-//}
-//
-//void httpd_task(void *pvParameters)
-//{
-//  tCGI pCGIs[] = { { "/gpio", (tCGIHandler)gpio_cgi_handler }, {
-//      "/about", (tCGIHandler)about_cgi_handler },
-//                   { "/websockets", (tCGIHandler)websocket_cgi_handler }, };
-//
-//  const char *pcConfigSSITags[] = { "uptime", // SSI_UPTIME
-//      "heap",   // SSI_FREE_HEAP
-//      "led"     // SSI_LED_STATE
-//      };
-//
-//  /* register handlers and start the server */
-//  http_set_cgi_handlers(pCGIs, sizeof(pCGIs) / sizeof(pCGIs[0]));
-//  http_set_ssi_handler((tSSIHandler)ssi_handler, pcConfigSSITags,
-//                       sizeof(pcConfigSSITags) / sizeof(pcConfigSSITags[0]));
-//  websocket_register_callbacks((tWsOpenHandler)websocket_open_cb,
-//                               (tWsHandler)websocket_cb);
-//  httpd_init();
-//
-//  while (1)
-//  {
-//    vTaskDelay(1000 / portTICK_PERIOD_MS);
-//  }
-//}
-//
-//void user_init(void)
-//{
-//  uart_set_baud(0, 115200);
-//  printf("SDK version:%s\n", sdk_system_get_sdk_version());
-//
-//  struct sdk_station_config sta_config =
-//  {
-//    .ssid = STA_SSID,
-//    .password = STA_PASS
-//  };
-//
-//  /* required to call wifi_set_opmode before station_set_config */
-//  sdk_wifi_set_opmode(STATIONAP_MODE);
-//
 //  struct ip_info ap_ip;
 //  IP4_ADDR(&ap_ip.ip, 172, 16, 0, 1);
 //  IP4_ADDR(&ap_ip.gw, 0, 0, 0, 0);
@@ -559,15 +515,16 @@ void user_init(void)
 //    .max_connection = 3,
 //    .beacon_interval = 100,
 //  };
+  sdk_wifi_set_opmode(STATIONAP_MODE);
 //  sdk_wifi_softap_set_config(&ap_config);
-//  sdk_wifi_station_set_config(&sta_config);
+  sdk_wifi_station_set_config(&sta_config);
 //  sdk_wifi_station_connect();
-//
+
 //  ip_addr_t first_client_ip;
 //  IP4_ADDR(&first_client_ip, 172, 16, 0, 2);
 //  dhcpserver_start(&first_client_ip, 4);
-//
-//  /* turn off LED */
+
+  /* turn off LED */
 //  HAL_GPIO_ConfigType led_config =
 //  {
 //    .mode = HAL_GPIO_MODE_OUT_PP,
@@ -578,7 +535,23 @@ void user_init(void)
 //  led_config.pin = LED_PIN;
 //  HAL_GPIO_Init(&led_config);
 //  HAL_GPIO_SetHigh(led_config.pin);
-//
-//  /* initialize tasks */
-//  xTaskCreate(&httpd_task, "HTTP Daemon", 128, NULL, 2, NULL);
-//}
+
+//  publish_queue = xQueueCreate(3, PUB_MSG_LEN);
+
+  /* Test MQTT */
+//  xTaskCreate(task_mqtt, "task_mqtt", 1152, NULL, tskIDLE_PRIORITY + 2, NULL);
+//  xTaskCreate(task_beat, "task_beat", 512, NULL, tskIDLE_PRIORITY + 3, NULL);
+
+  /* Test GPIO */
+//  xTaskCreate(task_gpio, "task_gpio", 256, NULL, 5, NULL);
+  /* Test BH1750 */
+//  xTaskCreate(task_bh1750, "task_bh1750", 256, NULL, 5, NULL);
+  /* Test SHT1X */
+//  xTaskCreate(task_sht1x, "task_sht1x", 256, NULL, 5, NULL);
+
+  /* Test HTTP */
+//  xTaskCreate(task_http, "task_http", 128, NULL, 2, NULL);
+  /* Test FOTA */
+  xTaskCreate(fota_task, "task_fota", 2048, NULL, 2, NULL);
+}
+

@@ -23,6 +23,7 @@
 #include "hal_uart.h"
 #include "hal_rtc_regs.h"
 #include "hal_iomux.h"
+#include "hal_interrupts.h"
 
 #include "etstimer.h"
 #include "sdk/sdk_private.h"
@@ -501,7 +502,7 @@ static void _deep_sleep_phase2(void *timer_arg)
   RTC.GPIO_CFG[2] = 0x00000011;
   RTC.GPIO_CFG[3] = 0x00000003;
   DPORT.INT_ENABLE &= ~(DPORT_INT_ENABLE_WDT);
-  _xt_isr_mask(1 << ETS_WDT_INUM);
+  _xt_isr_mask(1 << INUM_WDT);
   RTC._unknown40 = 0xffffffff;
   RTC._unknown44 = 0x00000020;
   RTC._unknown10 = 0x00000000;

@@ -95,11 +95,11 @@ typedef int sys_prot_t;
             printf x;                                   \
         _Pragma("GCC diagnostic pop")                   \
     } while(0)
-#define LWIP_PLATFORM_ASSERT(x) do { printf("Assertion \"%s\" failed at line %d in %s\n", \
+#define LWIP_PLATFORM_ASSERT(x) do { LOG_PRINTF("Assertion \"%s\" failed at line %d in %s", \
                                             x, __LINE__, __FILE__); abort(); } while(0)
 
 #define LWIP_ERROR(message, expression, handler) do { if (!(expression)) { \
-  printf("Assertion \"%s\" failed at line %d in %s\n", message, __LINE__, __FILE__); \
+  LOG_PRINTF("Assertion \"%s\" failed at line %d in %s", message, __LINE__, __FILE__); \
   handler;} } while(0)
 #else
 #define LWIP_PLATFORM_DIAG(x)

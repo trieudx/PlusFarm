@@ -253,7 +253,7 @@ static I2CM_ReturnType i2cm_tx_one_byte(uint8_t data, bool stop)
   /* Send one byte to slave */
   for (i = 7; i >= 0; i--)
   {
-    HAL_GPIO_Set(I2CM_SDA_PIN, (data >> i) & BIT0);
+    HAL_GPIO_Set(I2CM_SDA_PIN, (data >> i) & BIT(0));
     sdk_os_delay_us(i2cm_delay_quarter_cycle);
     HAL_GPIO_SetHigh(I2CM_SCL_PIN);
     sdk_os_delay_us(i2cm_delay_half_cycle);

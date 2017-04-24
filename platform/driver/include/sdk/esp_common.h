@@ -17,7 +17,5 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 
-#include "esp8266/esp8266.h"
-
 #include "spi_flash.h"
 #endif

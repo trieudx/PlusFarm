@@ -20,21 +20,21 @@
  */
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
+#include "mbedtls/mbedtls_config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
 
 #if defined(MBEDTLS_PLATFORM_C)
-#include "mbedtls/platform.h"
+#include "mbedtls/mbedtls_platform.h"
 #else
 #include <stdio.h>
 #define mbedtls_fprintf    fprintf
 #define mbedtls_printf     printf
 #endif
 
-#include "mbedtls/aes.h"
-#include "mbedtls/md.h"
+#include "mbedtls/mbedtls_aes.h"
+#include "mbedtls/mbedtls_md.h"
 
 #include <stdio.h>
 #include <stdlib.h>

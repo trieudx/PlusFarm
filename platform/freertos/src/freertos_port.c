@@ -78,6 +78,7 @@
 #include "freertos.h"
 #include "freertos_task.h"
 #include "freertos_xtensa.h"
+#include "hal_wdev_regs.h"
 
 unsigned cpu_sr;
 char level1_int_disabled;
@@ -276,4 +277,24 @@ signed portBASE_TYPE xTaskGenericCreate(TaskFunction_t pxTaskCode,
   return xTaskCreate(pxTaskCode, (const char * const )pcName, usStackDepth,
                      pvParameters, uxPriority, pxCreatedTask);
 }
+
+// .text+0x3a8
+void IRAM vApplicationStackOverflowHook(TaskHandle_t task, char *task_name)
+{
+  printf("Task stack overflow (high water mark=%lu name=\"%s\")\n",
+         uxTaskGetStackHighWaterMark(task), task_name);
+}
+
+// .text+0x3d8
+void __attribute__((weak)) IRAM vApplicationIdleHook(void)
+{
+  printf("idle %u\n", WDEV.SYS_TIME);
+}
+
+// .text+0x404
+void __attribute__((weak)) IRAM vApplicationTickHook(void)
+{
+  printf("tick %u\n", WDEV.SYS_TIME);
+}
+
 

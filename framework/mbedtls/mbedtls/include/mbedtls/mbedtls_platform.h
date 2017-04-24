@@ -43,6 +43,7 @@ extern "C"
  */
 
 #if !defined(MBEDTLS_PLATFORM_NO_STD_FUNCTIONS)
+#include "log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #if !defined(MBEDTLS_PLATFORM_STD_SNPRINTF)
@@ -53,7 +54,7 @@ extern "C"
 #endif
 #endif
 #if !defined(MBEDTLS_PLATFORM_STD_PRINTF)
-#define MBEDTLS_PLATFORM_STD_PRINTF   printf /**< Default printf to use  */
+#define MBEDTLS_PLATFORM_STD_PRINTF   LOG_PRINTF /**< Default printf to use  */
 #endif
 #if !defined(MBEDTLS_PLATFORM_STD_FPRINTF)
 #define MBEDTLS_PLATFORM_STD_FPRINTF fprintf /**< Default fprintf to use */
@@ -148,7 +149,7 @@ int mbedtls_platform_set_printf( int (*printf_func)( const char *, ... ) );
 #if defined(MBEDTLS_PLATFORM_PRINTF_MACRO)
 #define mbedtls_printf     MBEDTLS_PLATFORM_PRINTF_MACRO
 #else
-#define mbedtls_printf     printf
+#define mbedtls_printf     LOG_PRINTF
 #endif /* MBEDTLS_PLATFORM_PRINTF_MACRO */
 #endif /* MBEDTLS_PLATFORM_PRINTF_ALT */
 

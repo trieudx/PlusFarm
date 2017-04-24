@@ -15,6 +15,12 @@
 #define AP_SSID         "ESP Test"
 #define AP_PASS         "khongpass"
 
+#define TFTP_SERVER     "192.168.1.10"
+#define TFTP_PORT       69
+#define TFTP_FW_PATH    "PlusFarm.bin"
+
+#define FW_SHA256       "f55f78eb5af108a90a079dc5419e3f126edb1b53612d505456090fa0f76ae879"
+
 /* Public type definition section =========================================== */
 
 /* Public function prototype section ======================================== */

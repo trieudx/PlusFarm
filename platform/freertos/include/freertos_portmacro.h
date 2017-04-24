@@ -70,11 +70,9 @@ extern "C"
 {
 #endif
 
-#include "esp8266.h"
-#include "sdk/esp8266/ets_sys.h"
 #include <stdint.h>
 #include "freertos_xtensa.h"
-#include <hal_interrupts.h>
+#include "hal_interrupts.h"
 
   /*-----------------------------------------------------------
    * Port specific definitions for ESP8266

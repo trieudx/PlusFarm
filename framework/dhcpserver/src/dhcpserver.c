@@ -14,7 +14,7 @@
  * BSD Licensed as described in the file LICENSE
  */
 #include <string.h>
-
+#include "log.h"
 #include <freertos.h>
 #include <freertos_task.h>
 #include <lwip/lwip_netif.h>
@@ -117,7 +117,7 @@ static void dhcpserver_task(void *pxParameter)
   state->nc = netconn_new(NETCONN_UDP);
   if (!state->nc)
   {
-    printf("DHCP Server Error: Failed to allocate socket.\r\n");
+    LOG_PRINTF("DHCP Server Error: Failed to allocate socket.");
     return;
   }
 
@@ -132,8 +132,8 @@ static void dhcpserver_task(void *pxParameter)
     err_t err = netconn_recv(state->nc, &netbuf);
     if (err != ERR_OK)
     {
-      printf("DHCP Server Error: Failed to receive DHCP packet. err=%d\r\n",
-             err);
+      LOG_PRINTF("DHCP Server Error: Failed to receive DHCP packet. err=%d",
+                 err);
       continue;
     }
 
@@ -158,9 +158,8 @@ static void dhcpserver_task(void *pxParameter)
     }
     if (netbuf_len(netbuf) >= sizeof(struct dhcp_msg))
     {
-      printf(
-          "DHCP Server Warning: Client sent more options than we know how to parse. len=%d\r\n",
-          netbuf_len(netbuf));
+      LOG_PRINTF("DHCP Server Warning: Client sent more options than we know "
+                 "how to parse. len=%d", netbuf_len(netbuf));
     }
 
     netbuf_copy(netbuf, &received, sizeof(struct dhcp_msg));
@@ -172,18 +171,18 @@ static void dhcpserver_task(void *pxParameter)
                                              NULL);
     if (!message_type)
     {
-      printf("DHCP Server Error: No message type field found");
+      LOG_PRINTF("DHCP Server Error: No message type field found");
       continue;
     }
 
-    printf("State dump. Message type %d\n", *message_type);
+    LOG_PRINTF("State dump. Message type %d", *message_type);
     for (int i = 0; i < state->max_leases; i++)
     {
       dhcp_lease_t *lease = &state->leases[i];
-      printf("lease slot %d expiry %d hwaddr %02x:%02x:%02x:%02x:%02x:%02x\r\n",
-             i, lease->expires, lease->hwaddr[0], lease->hwaddr[1],
-             lease->hwaddr[2], lease->hwaddr[3], lease->hwaddr[4],
-             lease->hwaddr[5]);
+      LOG_PRINTF("lease slot %d expiry %d hwaddr %02x:%02x:%02x:%02x:%02x:%02x",
+                 i, lease->expires, lease->hwaddr[0], lease->hwaddr[1],
+                 lease->hwaddr[2], lease->hwaddr[3], lease->hwaddr[4],
+                 lease->hwaddr[5]);
     }
 
     switch (*message_type)
@@ -197,8 +196,8 @@ static void dhcpserver_task(void *pxParameter)
       case DHCP_RELEASE:
         handle_dhcp_release(&received);
       default:
-        printf("DHCP Server Error: Unsupported message type %d\r\n",
-               *message_type);
+        LOG_PRINTF("DHCP Server Error: Unsupported message type %d",
+                   *message_type);
         break;
     }
   }
@@ -214,7 +213,7 @@ static void handle_dhcp_discover(struct dhcp_msg *dhcpmsg)
   dhcp_lease_t *freelease = find_lease_slot(dhcpmsg->chaddr);
   if (!freelease)
   {
-    printf("DHCP Server: All leases taken.\r\n");
+    LOG_PRINTF("DHCP Server: All leases taken.");
     return; /* Nothing available, so do nothing */
   }
 
@@ -262,7 +261,7 @@ static void handle_dhcp_request(struct dhcp_msg *dhcpmsg)
   }
   else
   {
-    printf("DHCP Server Error: No requested IP\r\n");
+    LOG_PRINTF("DHCP Server Error: No requested IP");
     send_dhcp_nak(dhcpmsg);
     return;
   }
@@ -274,7 +273,7 @@ static void handle_dhcp_request(struct dhcp_msg *dhcpmsg)
       || ip4_addr3(&requested_ip) != ip4_addr3(&state->first_client_addr))
   {
     sprintf_ipaddr(&requested_ip, ipbuf);
-    printf("DHCP Server Error: %s not an allowed IP\r\n", ipbuf);
+    LOG_PRINTF("DHCP Server Error: %s not an allowed IP", ipbuf);
     send_dhcp_nak(dhcpmsg);
     return;
   }
@@ -283,7 +282,7 @@ static void handle_dhcp_request(struct dhcp_msg *dhcpmsg)
       &requested_ip) - ip4_addr4(&state->first_client_addr);
   if (octet_offs < 0 || octet_offs >= state->max_leases)
   {
-    printf("DHCP Server Error: Address out of range\r\n");
+    LOG_PRINTF("DHCP Server Error: Address out of range");
     send_dhcp_nak(dhcpmsg);
     return;
   }
@@ -292,17 +291,17 @@ static void handle_dhcp_request(struct dhcp_msg *dhcpmsg)
   if (requested_lease->expires != 0 && memcmp(requested_lease->hwaddr,
                                               dhcpmsg->chaddr, dhcpmsg->hlen))
   {
-    printf("DHCP Server Error: Lease for address already taken\r\n");
+    LOG_PRINTF("DHCP Server Error: Lease for address already taken");
     send_dhcp_nak(dhcpmsg);
     return;
   }
 
   memcpy(requested_lease->hwaddr, dhcpmsg->chaddr, dhcpmsg->hlen);
   sprintf_ipaddr(&requested_ip, ipbuf);
-  printf("DHCP lease addr %s assigned to MAC %02x:%02x:%02x:%02x:%02x:%02x\r\n",
-         ipbuf, requested_lease->hwaddr[0], requested_lease->hwaddr[1],
-         requested_lease->hwaddr[2], requested_lease->hwaddr[3],
-         requested_lease->hwaddr[4], requested_lease->hwaddr[5]);
+  LOG_PRINTF("DHCP lease addr %s assigned to MAC %02x:%02x:%02x:%02x:%02x:%02x",
+             ipbuf, requested_lease->hwaddr[0], requested_lease->hwaddr[1],
+             requested_lease->hwaddr[2], requested_lease->hwaddr[3],
+             requested_lease->hwaddr[4], requested_lease->hwaddr[5]);
   requested_lease->expires = DHCPSERVER_LEASE_TIME * configTICK_RATE_HZ;
 
   /* Reuse the REQUEST message as the ACK message */

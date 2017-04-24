@@ -24,7 +24,6 @@
 #include "hal_wdt_regs.h"
 #include "hal_rtcmem_regs.h"
 #include "hal_rng.h"
-#include "os_version.h"
 
 #include "sdk/esp_common.h"
 #include "sdk/phy_info.h"
@@ -254,25 +253,6 @@ void IRAM sdk_user_start(void)
   user_start_phase2();
 }
 
-// .text+0x3a8
-void IRAM vApplicationStackOverflowHook(TaskHandle_t task, char *task_name)
-{
-  printf("Task stack overflow (high water mark=%lu name=\"%s\")\n",
-         uxTaskGetStackHighWaterMark(task), task_name);
-}
-
-// .text+0x3d8
-void __attribute__((weak)) IRAM vApplicationIdleHook(void)
-{
-  printf("idle %u\n", WDEV.SYS_TIME);
-}
-
-// .text+0x404
-void __attribute__((weak)) IRAM vApplicationTickHook(void)
-{
-  printf("tick %u\n", WDEV.SYS_TIME);
-}
-
 // .Lfunc005 -- .irom0.text+0x8
 static void zero_bss(void)
 {
@@ -387,15 +367,7 @@ void sdk_wdt_init(void)
 // .irom0.text+0x474
 void sdk_user_init_task(void *params)
 {
-  int phy_ver, pp_ver;
-
   sdk_ets_timer_init();
-  printf("\nESP-Open-SDK ver: %s compiled @ %s %s\n", OS_VERSION_STR, __DATE__,
-  __TIME__);
-  phy_ver = RTCMEM_BACKUP[RTCMEM_BACKUP_PHY_VER] >> 16;
-  printf("phy ver: %d, ", phy_ver);
-  pp_ver = RTCMEM_SYSTEM[RTCMEM_SYSTEM_PP_VER];
-  printf("pp ver: %d.%d\n\n", (pp_ver >> 8) & 0xff, pp_ver & 0xff);
   user_init();
   sdk_user_init_flag = 1;
   sdk_wifi_mode_set(sdk_g_ic.s.wifi_mode);
@@ -485,7 +457,8 @@ static __attribute__((noinline)) void user_start_phase2(void)
 
   tcpip_init(NULL, NULL);
   sdk_wdt_init();
-  xTaskCreate(sdk_user_init_task, "uiT", 1024, 0, 14, &sdk_xUserTaskHandle);
+  xTaskCreate(sdk_user_init_task, "task_user_init", 1024, 0, 14,
+              &sdk_xUserTaskHandle);
   vTaskStartScheduler();
 }
 

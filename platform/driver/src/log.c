@@ -27,13 +27,13 @@ typedef struct
 } log_msg_t;
 
 /* Private function prototype section ======================================= */
-#ifdef LOG_VERBOSE
+#if LOG_VERBOSE
 static void task_log(void *param);
 static void log_get_time(log_time_t *time, uint32_t ms);
 #endif
 
 /* Private variable section ================================================= */
-#ifdef LOG_VERBOSE
+#if LOG_VERBOSE
 static QueueHandle_t         log_queue;
 #endif
 
@@ -43,7 +43,7 @@ void Log_Init(void)
   /* Initialize UART for printing log */
   uart_set_baud(0, 460800);
 
-#ifdef LOG_VERBOSE
+#if LOG_VERBOSE
   /* Initialize log queue */
   log_queue = xQueueCreate(LOG_QUEUE_SIZE, sizeof(log_msg_t));
   /* Create log task */
@@ -51,7 +51,7 @@ void Log_Init(void)
 #endif
 }
 
-#ifdef LOG_VERBOSE
+#if LOG_VERBOSE
 void Log_Printf(const char *format, ...)
 {
   log_msg_t msg;
@@ -74,7 +74,7 @@ void Log_Printf(const char *format, ...)
 #endif
 
 /* Private function definition section ====================================== */
-#ifdef LOG_VERBOSE
+#if LOG_VERBOSE
 static void task_log(void *param)
 {
   log_time_t time_info;

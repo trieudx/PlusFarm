@@ -8,6 +8,8 @@
 // See license.txt for license terms.
 //////////////////////////////////////////////////
 
+#include "stdint.h"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -18,14 +20,14 @@ extern "C"
 //#define BOOT_NO_ASM
 
 // uncomment to have a checksum on the boot config
-//#define BOOT_CONFIG_CHKSUM
+#define BOOT_CONFIG_CHKSUM
 
 // uncomment to enable big flash support (>1MB)
-//#define BOOT_BIG_FLASH
+#define BOOT_BIG_FLASH
 
 // uncomment to enable 2 way communication between
 // rBoot and the user app via the esp rtc data area
-//#define BOOT_RTC_ENABLED
+#define BOOT_RTC_ENABLED
 
 // uncomment to enable GPIO booting
 //#define BOOT_GPIO_ENABLED
@@ -89,16 +91,16 @@ extern "C"
    */
   typedef struct
   {
-      uint8 magic; ///< Our magic, identifies rBoot configuration - should be BOOT_CONFIG_MAGIC
-      uint8 version; ///< Version of configuration structure - should be BOOT_CONFIG_VERSION
-      uint8 mode;          ///< Boot loader mode (MODE_STANDARD | MODE_GPIO_ROM)
-      uint8 current_rom; ///< Currently selected ROM (will be used for next standard boot)
-      uint8 gpio_rom; ///< ROM to use for GPIO boot (hardware switch) with mode set to MODE_GPIO_ROM
-      uint8 count;           ///< Quantity of ROMs available to boot
-      uint8 unused[2];       ///< Padding (not used)
-      uint32 roms[MAX_ROMS]; ///< Flash addresses of each ROM
+      uint8_t magic; ///< Our magic, identifies rBoot configuration - should be BOOT_CONFIG_MAGIC
+      uint8_t version; ///< Version of configuration structure - should be BOOT_CONFIG_VERSION
+      uint8_t mode;          ///< Boot loader mode (MODE_STANDARD | MODE_GPIO_ROM)
+      uint8_t current_rom; ///< Currently selected ROM (will be used for next standard boot)
+      uint8_t gpio_rom; ///< ROM to use for GPIO boot (hardware switch) with mode set to MODE_GPIO_ROM
+      uint8_t count;           ///< Quantity of ROMs available to boot
+      uint8_t unused[2];       ///< Padding (not used)
+      uint32_t roms[MAX_ROMS]; ///< Flash addresses of each ROM
 #ifdef BOOT_CONFIG_CHKSUM
-      uint8 chksum; ///< Checksum of this configuration structure (if BOOT_CONFIG_CHKSUM defined)
+      uint8_t chksum; ///< Checksum of this configuration structure (if BOOT_CONFIG_CHKSUM defined)
 #endif
   } rboot_config;
 
@@ -110,12 +112,12 @@ extern "C"
  */
 typedef struct
 {
-  uint32 magic; ///< Magic, identifies rBoot RTC data - should be RBOOT_RTC_MAGIC
-  uint8 next_mode;///< The next boot mode, defaults to MODE_STANDARD - can be set to MODE_TEMP_ROM
-  uint8 last_mode;///< The last (this) boot mode - can be MODE_STANDARD, MODE_GPIO_ROM or MODE_TEMP_ROM
-  uint8 last_rom;///< The last (this) boot rom number
-  uint8 temp_rom;///< The next boot rom number when next_mode set to MODE_TEMP_ROM
-  uint8 chksum;///< Checksum of this structure this will be updated for you passed to the API
+  uint32_t magic; ///< Magic, identifies rBoot RTC data - should be RBOOT_RTC_MAGIC
+  uint8_t next_mode;///< The next boot mode, defaults to MODE_STANDARD - can be set to MODE_TEMP_ROM
+  uint8_t last_mode;///< The last (this) boot mode - can be MODE_STANDARD, MODE_GPIO_ROM or MODE_TEMP_ROM
+  uint8_t last_rom;///< The last (this) boot rom number
+  uint8_t temp_rom;///< The next boot rom number when next_mode set to MODE_TEMP_ROM
+  uint8_t chksum;///< Checksum of this structure this will be updated for you passed to the API
 }rboot_rtc_data;
 #endif
 

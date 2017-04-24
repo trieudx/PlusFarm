@@ -3,6 +3,7 @@
 ## ========================================================================== ##
 MODULES						:= CORE
 MODULES						+= HAL
+MODULES						+= RBOOT
 MODULES						+= FREERTOS
 MODULES						+= DRIVER
 MODULES						+= LWIP
@@ -11,6 +12,7 @@ MODULES						+= MBEDTLS
 MODULES						+= DHCPSERVER
 MODULES						+= MQTT
 MODULES						+= JSMN
+MODULES						+= TFTP
 MODULES						+= APP
 
 ## ========================================================================== ##
@@ -36,6 +38,7 @@ FRAMEWORK_DIR				= $(PROJECT_ROOT)/framework
 	DHCPSERVER_DIR			= $(FRAMEWORK_DIR)/dhcpserver
 	MQTT_DIR				= $(FRAMEWORK_DIR)/mqtt
 	JSMN_DIR				= $(FRAMEWORK_DIR)/jsmn
+	TFTP_DIR				= $(FRAMEWORK_DIR)/tftp
 APP_DIR						= $(PROJECT_ROOT)/app
 	FSDATA_DIR				= $(APP_DIR)/fsdata
 LD_DIR						= $(PROJECT_ROOT)/ld
@@ -48,10 +51,11 @@ BUILD_DIR					= $(PROJECT_ROOT)/build
 
 ## ----------------------------- SOURCE ------------------------------------- ##
 SRC_CORE					:= $(SDKLIB_DIR)/src
-SRC_CORE					+= $(NEWLIB_DIR)/src
 SRC_CORE					+= $(STARTUP_DIR)/src
 
 SRC_HAL						:= $(HAL_DIR)/src
+
+SRC_RBOOT					:= $(BOOTLOADER_DIR)/rboot/appcode
 
 SRC_FREERTOS				:= $(FREERTOS_DIR)/src
 
@@ -74,6 +78,8 @@ SRC_MQTT					:= $(MQTT_DIR)/src
 
 SRC_JSMN					:= $(JSMN_DIR)/src
 
+SRC_TFTP					:= $(TFTP_DIR)/src
+
 SRC_APP						:= $(APP_DIR)/src
 
 define CreateSrcDirList
@@ -90,6 +96,9 @@ INCLUDE_DIRS				+= $(NEWLIB_DIR)/include
 INCLUDE_DIRS				+= $(STARTUP_DIR)/include
 ## HAL
 INCLUDE_DIRS				+= $(HAL_DIR)/include
+## RBOOT
+INCLUDE_DIRS				+= $(BOOTLOADER_DIR)/rboot
+INCLUDE_DIRS				+= $(BOOTLOADER_DIR)/rboot/appcode
 ## FREERTOS
 INCLUDE_DIRS				+= $(FREERTOS_DIR)/include
 ## DRIVER
@@ -111,6 +120,8 @@ INCLUDE_DIRS				+= $(DHCPSERVER_DIR)/include
 INCLUDE_DIRS				+= $(MQTT_DIR)/include
 ## JSMN
 INCLUDE_DIRS				+= $(JSMN_DIR)/include
+## TFTP
+INCLUDE_DIRS				+= $(TFTP_DIR)/include
 ## APP
 INCLUDE_DIRS				+= $(APP_DIR)/include
 
@@ -192,10 +203,11 @@ CFLAGS_OPT			+= -mtext-section-literals
 FLAGS_OPT			+= -Wpointer-arith -Werror
 CFLAGS_OPT			+= -fno-aggressive-loop-optimizations
 ## MACRO
-CFLAGS_DEF			:= -DGITSHORTREV=\"31ef50c\"
-CFLAGS_DEF			+= -DLWIP_HTTPD_CGI=1 -DLWIP_HTTPD_SSI=1
-CFLAGS_DEF			+= -DLOG_VERBOSE
-#-DUSE_FULL_ASSERT
+CFLAGS_DEF			:= -D GITSHORTREV=\"31ef50c\"
+CFLAGS_DEF			+= -D LWIP_HTTPD_CGI=1 -D LWIP_HTTPD_SSI=1
+CFLAGS_DEF			+= -D LOG_VERBOSE=1
+CFLAGS_DEF			+= -D USE_OS=1
+#CFLAGS_DEF			+= -D USE_FULL_ASSERT=1
 
 CFLAGS				:= $(CFLAGS_OPT) $(CFLAGS_DEF)
 CFLAGS				+= $(addprefix -I, $(INCLUDE_DIRS))
@@ -211,13 +223,14 @@ LFLAGS				+= -Wl,--no-check-sections
 LFLAGS				+= -u call_user_start -u _printf_float -u _scanf_float
 LFLAGS				+= -Wl,-static
 LFLAGS				+= -Wl,--whole-archive
-LFLAGS				+= $(CORE_LIB_FILE) $(HAL_LIB_FILE)
+LFLAGS				+= $(CORE_LIB_FILE)
 LFLAGS				+= -Wl,--no-whole-archive
 LFLAGS				+= -Wl,--start-group
-LFLAGS				+= $(FREERTOS_LIB_FILE) $(DRIVER_LIB_FILE) $(LWIP_LIB_FILE)
-LFLAGS				+= $(HTTPD_LIB_FILE) $(MBEDTLS_LIB_FILE)
+LFLAGS				+= $(HAL_LIB_FILE) $(FREERTOS_LIB_FILE) $(DRIVER_LIB_FILE)
+LFLAGS				+= $(LWIP_LIB_FILE) $(HTTPD_LIB_FILE) $(MBEDTLS_LIB_FILE)
 LFLAGS				+= $(DHCPSERVER_LIB_FILE) $(MQTT_LIB_FILE) $(JSMN_LIB_FILE)
-LFLAGS				+= $(SDKLIB_FILES) $(NEWLIB_FILE) $(APP_LIB_FILE)
+LFLAGS				+= $(TFTP_LIB_FILE) $(SDKLIB_FILES) $(NEWLIB_FILE)
+LFLAGS				+= $(RBOOT_LIB_FILE) $(APP_LIB_FILE)
 LFLAGS				+= -lgcc -lhal
 LFLAGS				+= -Wl,--end-group
 
@@ -303,9 +316,6 @@ $(BIN_FILE): $(IMAGE_FILE) | $(BIN_DIR)
 
 all: $(BIN_FILE)
 	@echo ""
-
-hehe:
-	@echo "$(USERLIB_FILES)"
 
 clean:
 	$(Q) $(RM) -r $(BUILD_DIR)
